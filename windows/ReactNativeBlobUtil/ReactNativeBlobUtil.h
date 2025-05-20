@@ -22,7 +22,7 @@ struct ReactNativeBlobUtil
   void Initialize(React::ReactContext const& reactContext) noexcept;
 
   REACT_METHOD(getConstants)
-  ReactNativeBlobUtilCodegen::BlobUtilsSpec_Constants* getConstants();
+  ReactNativeBlobUtilCodegen::BlobUtilsSpec_Constants getConstants();
 
   REACT_METHOD(fetchBlobForm)
   void fetchBlobForm(JSValue options, std::string const& taskId, std::string const& method, std::string const& url, JSValue headers, JSValue form, std::function<void(JSValue)> const& callback);
