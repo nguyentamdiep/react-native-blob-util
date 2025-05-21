@@ -12,81 +12,388 @@ void ReactNativeBlobUtil::Initialize(React::ReactContext const &reactContext) no
 }
 
 // Constants method
-ReactNativeBlobUtilCodegen::Constants ReactNativeBlobUtil::getConstants() noexcept {
-    return {
-      .CacheDir = L"",
-      .DocumentDir = L"",
-      .DownloadDir = L"",
-      .LibraryDir = L"",
-      .MainBundleDir = L"",
-      .MovieDir = L"",
-      .MusicDir = L"",
-      .PictureDir = L"",
-      .ApplicationSupportDir = L"",
-      .RingtoneDir = L"",
-      .SDCardDir = L"",
-      .SDCardApplicationDir = L"",
-      .DCIMDir = L"",
-      .LegacyDCIMDir = L"",
-      .LegacyPictureDir = L"",
-      .LegacyMusicDir = L"",
-      .LegacyDownloadDir = L"",
-      .LegacyMovieDir = L"",
-      .LegacyRingtoneDir = L"",
-      .LegacySDCardDir = L""
-    };
+ReactNativeBlobUtilCodegen::BlobUtilsSpec_Constants ReactNativeBlobUtil::GetConstants() noexcept {
+    return {};
 }
 
 // Stub implementations for all methods
 
-void ReactNativeBlobUtil::fetchBlobForm(JSValue const&, std::string const&, std::string const&, std::string const&, JSValue const&, JSValue const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-void ReactNativeBlobUtil::fetchBlob(JSValue const&, std::string const&, std::string const&, std::string const&, JSValue const&, std::string const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-fire_and_forget ReactNativeBlobUtil::createFile(std::string const&, std::string const&, std::string const&) noexcept { co_return; }
-fire_and_forget ReactNativeBlobUtil::createFileASCII(std::string const&, JSValue const&) noexcept { co_return; }
-fire_and_forget ReactNativeBlobUtil::pathForAppGroup(std::string const&, React::ReactPromise<std::string> const& result) noexcept { result.Reject("Not implemented"); co_return; }
-std::string ReactNativeBlobUtil::syncPathAppGroup(std::string const&) noexcept { return ""; }
-void ReactNativeBlobUtil::exists(std::string const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-fire_and_forget ReactNativeBlobUtil::writeFile(std::string const&, std::string const&, std::string const&, bool, bool, React::ReactPromise<int32_t> const& result) noexcept { result.Resolve(0); co_return; }
-fire_and_forget ReactNativeBlobUtil::writeFileArray(std::string const&, JSValue const&, bool, React::ReactPromise<int32_t> const& result) noexcept { result.Resolve(0); co_return; }
-void ReactNativeBlobUtil::writeStream(std::string const&, std::string const&, bool, React::ReactCallback<const JSValue&> const&) noexcept {}
-void ReactNativeBlobUtil::writeArrayChunk(std::string const&, JSValue const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-void ReactNativeBlobUtil::writeChunk(std::string const&, std::string const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-void ReactNativeBlobUtil::closeStream(std::string const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-void ReactNativeBlobUtil::unlink(std::string const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-void ReactNativeBlobUtil::removeSession(JSValue const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-fire_and_forget ReactNativeBlobUtil::ls(std::string const&, React::ReactPromise<JSValue> const& result) noexcept { result.Resolve(JSValueArray{}); co_return; }
-void ReactNativeBlobUtil::stat(std::string const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-void ReactNativeBlobUtil::lstat(std::string const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-void ReactNativeBlobUtil::cp(std::string const&, std::string const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-void ReactNativeBlobUtil::mv(std::string const&, std::string const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-fire_and_forget ReactNativeBlobUtil::mkdir(std::string const&, React::ReactPromise<bool> const& result) noexcept { result.Resolve(true); co_return; }
-fire_and_forget ReactNativeBlobUtil::readFile(std::string const&, std::string const&, bool, React::ReactPromise<JSValue> const& result) noexcept { result.Resolve(JSValueArray{}); co_return; }
-fire_and_forget ReactNativeBlobUtil::hash(std::string const&, std::string const&, React::ReactPromise<std::string> const& result) noexcept { result.Resolve(""); co_return; }
-void ReactNativeBlobUtil::readStream(std::string const&, std::string const&, int32_t, int32_t, std::string const&) noexcept {}
-void ReactNativeBlobUtil::getEnvironmentDirs(React::ReactCallback<const JSValue&> const&) noexcept {}
-void ReactNativeBlobUtil::cancelRequest(std::string const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-void ReactNativeBlobUtil::enableProgressReport(std::string const&, int32_t, int32_t) noexcept {}
-void ReactNativeBlobUtil::enableUploadProgressReport(std::string const&, int32_t, int32_t) noexcept {}
-fire_and_forget ReactNativeBlobUtil::slice(std::string const&, std::string const&, int64_t, int64_t, React::ReactPromise<std::string> const& result) noexcept { result.Resolve(""); co_return; }
-fire_and_forget ReactNativeBlobUtil::presentOptionsMenu(std::string const&, std::string const&, React::ReactPromise<JSValue> const& result) noexcept { result.Resolve(JSValueArray{}); co_return; }
-fire_and_forget ReactNativeBlobUtil::presentOpenInMenu(std::string const&, std::string const&, React::ReactPromise<JSValue> const& result) noexcept { result.Resolve(JSValueArray{}); co_return; }
-fire_and_forget ReactNativeBlobUtil::presentPreview(std::string const&, std::string const&, React::ReactPromise<JSValue> const& result) noexcept { result.Resolve(JSValueArray{}); co_return; }
-fire_and_forget ReactNativeBlobUtil::excludeFromBackupKey(std::string const&, React::ReactPromise<JSValue> const& result) noexcept { result.Resolve(JSValueArray{}); co_return; }
-void ReactNativeBlobUtil::df(React::ReactCallback<const JSValue&> const&) noexcept {}
-void ReactNativeBlobUtil::emitExpiredEvent(React::ReactCallback<std::string const&> const&) noexcept {}
-fire_and_forget ReactNativeBlobUtil::actionViewIntent(std::string const&, std::string const&, std::string const&) noexcept { co_return; }
-fire_and_forget ReactNativeBlobUtil::addCompleteDownload(JSValue const&) noexcept { co_return; }
-fire_and_forget ReactNativeBlobUtil::copyToInternal(std::string const&, std::string const&, React::ReactPromise<std::string> const& result) noexcept { result.Resolve(""); co_return; }
-fire_and_forget ReactNativeBlobUtil::copyToMediaStore(JSValue const&, std::string const&, std::string const&, React::ReactPromise<std::string> const& result) noexcept { result.Resolve(""); co_return; }
-fire_and_forget ReactNativeBlobUtil::createMediaFile(JSValue const&, std::string const&, React::ReactPromise<std::string> const& result) noexcept { result.Resolve(""); co_return; }
-fire_and_forget ReactNativeBlobUtil::getBlob(std::string const&, std::string const&, React::ReactPromise<JSValue> const& result) noexcept { result.Resolve(JSValueArray{}); co_return; }
-fire_and_forget ReactNativeBlobUtil::getContentIntent(std::string const&, React::ReactPromise<std::string> const& result) noexcept { result.Resolve(""); co_return; }
-fire_and_forget ReactNativeBlobUtil::getSDCardDir(React::ReactPromise<std::string> const& result) noexcept { result.Resolve(""); co_return; }
-fire_and_forget ReactNativeBlobUtil::getSDCardApplicationDir(React::ReactPromise<std::string> const& result) noexcept { result.Resolve(""); co_return; }
-void ReactNativeBlobUtil::scanFile(JSValue const&, React::ReactCallback<const JSValue&> const&) noexcept {}
-fire_and_forget ReactNativeBlobUtil::writeToMediaFile(std::string const&, std::string const&, bool, React::ReactPromise<std::string> const& result) noexcept { result.Resolve(""); co_return; }
+void ReactNativeBlobUtil::fetchBlobForm(
+    ::React::JSValue&&,
+    std::string,
+    std::string,
+    std::string,
+    ::React::JSValue&&,
+    ::React::JSValueArray&&,
+    std::function<void(::React::JSValueArray const&)> const&
+) noexcept
+{
+    // Empty implementation
+}
 
-void ReactNativeBlobUtil::addListener(std::string const&) noexcept {}
-void ReactNativeBlobUtil::removeListeners(int32_t) noexcept {}
+void ReactNativeBlobUtil::fetchBlob(
+    ::React::JSValue&&,
+    std::string,
+    std::string,
+    std::string,
+    ::React::JSValue&&,
+    std::string,
+    std::function<void(::React::JSValueArray const&)> const&
+) noexcept
+{
+    // Empty implementation
+}
 
+void ReactNativeBlobUtil::createFile(
+    std::string,
+    std::string,
+    std::string,
+    ::React::ReactPromise<void>&&
+) noexcept
+{
+    // Empty implementation
+}
+
+void ReactNativeBlobUtil::createFileASCII(
+    std::string path,
+    ::React::JSValueArray&& data,
+    ::React::ReactPromise<void>&& result) noexcept
+{
+    result.Resolve();
+}
+
+void ReactNativeBlobUtil::pathForAppGroup(
+    std::string groupName,
+    ::React::ReactPromise<std::string>&& result) noexcept
+{
+    result.Resolve("");
+}
+
+std::string ReactNativeBlobUtil::syncPathAppGroup(
+    std::string groupName) noexcept
+{
+    return "";
+}
+
+void ReactNativeBlobUtil::exists(
+    std::string path,
+    std::function<void(std::vector<bool> const&)> const& callback) noexcept
+{
+    callback({});
+}
+
+void ReactNativeBlobUtil::writeFile(
+    std::string path,
+    std::string encoding,
+    std::string data,
+    bool transformFile,
+    bool append,
+    ::React::ReactPromise<double>&& result) noexcept
+{
+    result.Resolve(0.0);
+}
+
+void ReactNativeBlobUtil::writeFileArray(
+    std::string path,
+    ::React::JSValueArray&& data,
+    bool append,
+    ::React::ReactPromise<double>&& result) noexcept
+{
+    result.Resolve(0.0);
+}
+
+void ReactNativeBlobUtil::writeStream(
+    std::string path,
+    std::string withEncoding,
+    bool appendData,
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::writeArrayChunk(
+    std::string streamId,
+    ::React::JSValueArray&& withArray,
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::writeChunk(
+    std::string streamId,
+    std::string withData,
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::closeStream(
+    std::string streamId,
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::unlink(
+    std::string path,
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::removeSession(
+    ::React::JSValueArray&& paths,
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::ls(
+    std::string path,
+    ::React::ReactPromise<::React::JSValueArray>&& result) noexcept
+{
+    result.Resolve(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::stat(
+    std::string target,
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::lstat(
+    std::string path,
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::cp(
+    std::string src,
+    std::string dest,
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::mv(
+    std::string path,
+    std::string dest,
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::mkdir(
+    std::string path,
+    ::React::ReactPromise<bool>&& result) noexcept
+{
+    result.Resolve(false);
+}
+
+void ReactNativeBlobUtil::readFile(
+    std::string path,
+    std::string encoding,
+    bool transformFile,
+    ::React::ReactPromise<::React::JSValueArray>&& result) noexcept
+{
+    result.Resolve(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::hash(
+    std::string path,
+    std::string algorithm,
+    ::React::ReactPromise<std::string>&& result) noexcept
+{
+    result.Resolve("");
+}
+
+void ReactNativeBlobUtil::readStream(
+    std::string path,
+    std::string encoding,
+    double bufferSize,
+    double tick,
+    std::string streamId) noexcept
+{
+    // No-op
+}
+
+void ReactNativeBlobUtil::getEnvironmentDirs(
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::cancelRequest(
+    std::string taskId,
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::enableProgressReport(
+    std::string taskId,
+    double interval,
+    double count) noexcept
+{
+    // No-op
+}
+
+void ReactNativeBlobUtil::enableUploadProgressReport(
+    std::string taskId,
+    double interval,
+    double count) noexcept
+{
+    // No-op
+}
+
+void ReactNativeBlobUtil::slice(
+    std::string src,
+    std::string dest,
+    double start,
+    double end,
+    ::React::ReactPromise<std::string>&& result) noexcept
+{
+    result.Resolve("");
+}
+
+void ReactNativeBlobUtil::presentOptionsMenu(
+    std::string uri,
+    std::string scheme,
+    ::React::ReactPromise<::React::JSValueArray>&& result) noexcept
+{
+    result.Resolve(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::presentOpenInMenu(
+    std::string uri,
+    std::string scheme,
+    ::React::ReactPromise<::React::JSValueArray>&& result) noexcept
+{
+    result.Resolve(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::presentPreview(
+    std::string uri,
+    std::string scheme,
+    ::React::ReactPromise<::React::JSValueArray>&& result) noexcept
+{
+    result.Resolve(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::excludeFromBackupKey(
+    std::string url,
+    ::React::ReactPromise<::React::JSValueArray>&& result) noexcept
+{
+    result.Resolve(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::df(
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::emitExpiredEvent(
+    std::function<void(std::string)> const& callback) noexcept
+{
+    callback("");
+}
+
+void ReactNativeBlobUtil::actionViewIntent(
+    std::string path,
+    std::string mime,
+    std::string chooserTitle,
+    ::React::ReactPromise<void>&& result) noexcept
+{
+    result.Resolve();
+}
+
+void ReactNativeBlobUtil::addCompleteDownload(
+    ::React::JSValue&& config,
+    ::React::ReactPromise<void>&& result) noexcept
+{
+    result.Resolve();
+}
+
+void ReactNativeBlobUtil::copyToInternal(
+    std::string contentUri,
+    std::string destpath,
+    ::React::ReactPromise<std::string>&& result) noexcept
+{
+    result.Resolve("");
+}
+
+void ReactNativeBlobUtil::copyToMediaStore(
+    ::React::JSValue&& filedata,
+    std::string mt,
+    std::string path,
+    ::React::ReactPromise<std::string>&& result) noexcept
+{
+    result.Resolve("");
+}
+
+void ReactNativeBlobUtil::createMediaFile(
+    ::React::JSValue&& filedata,
+    std::string mt,
+    ::React::ReactPromise<std::string>&& result) noexcept
+{
+    result.Resolve("");
+}
+
+void ReactNativeBlobUtil::getBlob(
+    std::string contentUri,
+    std::string encoding,
+    ::React::ReactPromise<::React::JSValueArray>&& result) noexcept
+{
+    result.Resolve(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::getContentIntent(
+    std::string mime,
+    ::React::ReactPromise<std::string>&& result) noexcept
+{
+    result.Resolve("");
+}
+
+void ReactNativeBlobUtil::getSDCardDir(
+    ::React::ReactPromise<std::string>&& result) noexcept
+{
+    result.Resolve("");
+}
+
+void ReactNativeBlobUtil::getSDCardApplicationDir(
+    ::React::ReactPromise<std::string>&& result) noexcept
+{
+    result.Resolve("");
+}
+
+void ReactNativeBlobUtil::scanFile(
+    ::React::JSValueArray&& pairs,
+    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+{
+    callback(::React::JSValueArray{});
+}
+
+void ReactNativeBlobUtil::writeToMediaFile(
+    std::string fileUri,
+    std::string path,
+    bool transformFile,
+    ::React::ReactPromise<std::string>&& result) noexcept
+{
+    result.Resolve("");
+}
+
+void ReactNativeBlobUtil::addListener(
+    std::string eventName) noexcept
+{
+    // No-op
+}
+
+void ReactNativeBlobUtil::removeListeners(
+    double count) noexcept
+{
+    // No-op
+}
 } // namespace winrt::ReactNativeBlobUtil
