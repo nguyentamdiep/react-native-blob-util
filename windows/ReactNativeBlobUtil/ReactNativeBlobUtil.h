@@ -164,16 +164,16 @@ struct ReactNativeBlobUtil
         void writeFile(std::string path, std::string encoding, std::string data, bool transformFile, bool append, ::React::ReactPromise<double>&& result) noexcept;
 
     REACT_METHOD(writeFileArray, L"writeFileArray")
-        void writeFileArray(std::string path, ::React::JSValueArray&& data, bool append, ::React::ReactPromise<double>&& result) noexcept;
+        void writeFileArray(std::string path, ::React::JSValueArray&& dataArray, bool append, ::React::ReactPromise<double>&& promise) noexcept;
 
     REACT_METHOD(writeStream, L"writeStream")
-        void writeStream(std::string path, std::string withEncoding, bool appendData, std::function<void(::React::JSValueArray const&)> const& callback) noexcept;
+        void writeStream(std::string path, std::string encoding, bool appendData, std::function<void(::React::JSValueArray const&)> const& callback) noexcept;
 
     REACT_METHOD(writeArrayChunk, L"writeArrayChunk")
-        void writeArrayChunk(std::string streamId, ::React::JSValueArray&& withArray, std::function<void(::React::JSValueArray const&)> const& callback) noexcept;
+        void writeArrayChunk(std::string streamId, ::React::JSValueArray&& dataArray, std::function<void(::React::JSValueArray const&)> const& callback) noexcept;
 
     REACT_METHOD(writeChunk, L"writeChunk")
-        void writeChunk(std::string streamId, std::string withData, std::function<void(::React::JSValueArray const&)> const& callback) noexcept;
+        void writeChunk(std::string streamId, std::string data, std::function<void(::React::JSValueArray const&)> const& callback) noexcept;
 
     REACT_METHOD(closeStream, L"closeStream")
         void closeStream(std::string streamId, std::function<void(::React::JSValueArray const&)> const& callback) noexcept;
