@@ -110,36 +110,46 @@ void TaskCancellationManager::Cancel(TaskId taskId) noexcept
 	}
 }
 
-ReactNativeBlobUtilConfig::ReactNativeBlobUtilConfig(winrt::Microsoft::ReactNative::JSValueObject& options) {
-	if (options["appendExt"].IsNull() == true)
-	{
-		appendExt = "";
-	}
-	else
-	{
-		appendExt = options["appendExt"].AsString();
-	}
-	fileCache = options["fileCache"].AsBoolean();
-	followRedirect = options["followRedirect"].AsBoolean();
-	overwrite = options["overwrite"].AsBoolean();
-	if (options["path"].IsNull() == true)
-	{
-		path = "";
-	}
-	else
-	{
-		auto filepath{ options["path"].AsString() };
-		auto fileLength{ filepath.length() };
-		bool hasTrailingSlash{ filepath[fileLength - 1] == '\\' || filepath[fileLength - 1] == '/' };
-		std::filesystem::path pathToParse{ hasTrailingSlash ? filepath.substr(0, fileLength - 1) : filepath };
-		pathToParse.make_preferred();
-		path = pathToParse.string();
-	}
-	trusty = options["trusty"].AsBoolean();
+ReactNativeBlobUtilConfig::ReactNativeBlobUtilConfig(::React::JSValue& options)
+{
+    auto getStringOrDefault = [](const winrt::Microsoft::ReactNative::JSValue& value, const std::string& defaultValue = "") -> std::string {
+        return value.IsNull() ? defaultValue : value.AsString();
+    };
 
-	int64_t potentialTimeout{ options["timeout"].AsInt64() };
-	timeout = std::chrono::seconds{ potentialTimeout > 0 ? potentialTimeout : 60000 };
+    auto getBoolOrDefault = [](const winrt::Microsoft::ReactNative::JSValue& value, bool defaultValue = false) -> bool {
+        return value.IsNull() ? defaultValue : value.AsBoolean();
+    };
 
+    auto getInt64OrDefault = [](const winrt::Microsoft::ReactNative::JSValue& value, int64_t defaultValue = 60000) -> int64_t {
+        return value.IsNull() ? defaultValue : value.AsInt64();
+    };
+
+    appendExt = getStringOrDefault(options["appendExt"]);
+    fileCache = getBoolOrDefault(options["fileCache"]);
+    followRedirect = getBoolOrDefault(options["followRedirect"]);
+    overwrite = getBoolOrDefault(options["overwrite"]);
+    trusty = getBoolOrDefault(options["trusty"]);
+
+    // Handle path sanitization
+    {
+        std::string filepath = getStringOrDefault(options["path"]);
+        if (!filepath.empty())
+        {
+            size_t fileLength = filepath.length();
+            bool hasTrailingSlash = filepath[fileLength - 1] == '\\' || filepath[fileLength - 1] == '/';
+            std::filesystem::path pathToParse = hasTrailingSlash ? filepath.substr(0, fileLength - 1) : filepath;
+            pathToParse.make_preferred();
+            path = pathToParse.string();
+        }
+        else
+        {
+            path = "";
+        }
+    }
+
+    // Timeout handling
+    int64_t potentialTimeout = getInt64OrDefault(options["timeout"]);
+    timeout = std::chrono::seconds{ potentialTimeout > 0 ? potentialTimeout : 60000 };
 }
 
 ReactNativeBlobUtilProgressConfig::ReactNativeBlobUtilProgressConfig(double count_, double interval_) : count(count_), interval(interval_) {
@@ -173,31 +183,279 @@ ReactNativeBlobUtilCodegen::BlobUtilsSpec_Constants ReactNativeBlobUtil::GetCons
     return constants;
 }
 
-// Stub implementations for all methods
 void ReactNativeBlobUtil::fetchBlobForm(
-    ::React::JSValue&&,
-    std::string,
-    std::string,
-    std::string,
-    ::React::JSValue&&,
-    ::React::JSValueArray&&,
-    std::function<void(::React::JSValueArray const&)> const&
+    ::React::JSValue&& options,
+    std::string taskId,
+    std::string method,
+    std::string url,
+    ::React::JSValue&& headers,
+    ::React::JSValueArray&& body,
+    std::function<void(::React::JSValueArray const&)> const& callback
 ) noexcept
 {
-    // Empty implementation
+    try
+    {
+        winrt::hstring boundary{ L"-----" };
+        winrt::Windows::Web::Http::Filters::HttpBaseProtocolFilter filter;
+        ReactNativeBlobUtilConfig config{ options };
+        filter.AllowAutoRedirect(false);
+
+        if (config.trusty)
+        {
+            filter.IgnorableServerCertificateErrors().Append(
+                winrt::Windows::Security::Cryptography::Certificates::ChainValidationResult::Untrusted);
+        }
+
+        winrt::Windows::Web::Http::HttpMethod httpMethod = winrt::Windows::Web::Http::HttpMethod::Post();
+        if (method == "DELETE" || method == "delete")
+            httpMethod = winrt::Windows::Web::Http::HttpMethod::Delete();
+        else if (method == "PUT" || method == "put")
+            httpMethod = winrt::Windows::Web::Http::HttpMethod::Put();
+        else if (method == "GET" || method == "get")
+            httpMethod = winrt::Windows::Web::Http::HttpMethod::Get();
+        else if (method != "POST" && method != "post")
+        {
+            ::React::JSValueArray errorArray;
+            errorArray.push_back("Method not supported");
+            callback(errorArray);
+            return;
+        }
+
+        winrt::Windows::Web::Http::HttpRequestMessage requestMessage{ httpMethod, winrt::Windows::Foundation::Uri{ winrt::to_hstring(url) } };
+        winrt::Windows::Web::Http::HttpMultipartFormDataContent requestContent{ boundary };
+
+        // Add headers
+        if (headers.ItemCount() > 0)
+        {
+            for (const auto& entry : headers.AsObject())
+            {
+                if (!requestMessage.Headers().TryAppendWithoutValidation(
+                        winrt::to_hstring(entry.first), winrt::to_hstring(entry.second.AsString())))
+                {
+                    requestContent.Headers().TryAppendWithoutValidation(
+                        winrt::to_hstring(entry.first), winrt::to_hstring(entry.second.AsString()));
+                }
+            }
+        }
+
+        // Add form data
+        for (auto& entry : body)
+        {
+            auto& items = entry.AsObject();
+            auto data = items["data"].AsString();
+
+            // File upload support: expects "file://" prefix
+            bool isFile = data.rfind("file://", 0) == 0;
+            if (isFile)
+            {
+                std::string contentPath = data.substr(strlen("file://"));
+                winrt::hstring directoryPath, fileName;
+                splitPath(contentPath, directoryPath, fileName);
+                auto folder = winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(directoryPath).get();
+                auto storageFile = folder.GetFileAsync(fileName).get();
+                auto requestBuffer = winrt::Windows::Storage::FileIO::ReadBufferAsync(storageFile).get();
+
+                winrt::Windows::Web::Http::HttpBufferContent requestBufferContent{ requestBuffer };
+                if (!items["type"].IsNull())
+                {
+                    requestBufferContent.Headers().TryAppendWithoutValidation(
+                        L"content-type", winrt::to_hstring(items["type"].AsString()));
+                }
+
+                auto name = items["name"].IsNull() ? L"" : winrt::to_hstring(items["name"].AsString());
+                auto filename = items["filename"].IsNull() ? L"" : winrt::to_hstring(items["filename"].AsString());
+                if (name.empty())
+                {
+                    requestContent.Add(requestBufferContent);
+                }
+                else if (filename.empty())
+                {
+                    requestContent.Add(requestBufferContent, name);
+                }
+                else
+                {
+                    requestContent.Add(requestBufferContent, name, filename);
+                }
+            }
+            else
+            {
+                winrt::Windows::Web::Http::HttpStringContent dataContents{ winrt::to_hstring(data) };
+                if (!items["type"].IsNull())
+                {
+                    dataContents.Headers().TryAppendWithoutValidation(
+                        L"content-type", winrt::to_hstring(items["type"].AsString()));
+                }
+
+                auto name = items["name"].IsNull() ? L"" : winrt::to_hstring(items["name"].AsString());
+                auto filename = items["filename"].IsNull() ? L"" : winrt::to_hstring(items["filename"].AsString());
+                if (name.empty())
+                {
+                    requestContent.Add(dataContents);
+                }
+                else if (filename.empty())
+                {
+                    requestContent.Add(dataContents, name);
+                }
+                else
+                {
+                    requestContent.Add(dataContents, name, filename);
+                }
+            }
+        }
+
+        requestMessage.Content(requestContent);
+
+        winrt::Windows::Web::Http::HttpClient httpClient{ filter };
+        auto response = httpClient.SendRequestAsync(requestMessage).get();
+
+        std::string responseBody;
+        if (response.Content() != nullptr)
+        {
+            responseBody = winrt::to_string(response.Content().ReadAsStringAsync().get());
+        }
+
+        ::React::JSValueArray resultArray;
+        resultArray.push_back(responseBody);
+        callback(resultArray);
+    }
+    catch (const winrt::hresult_error& ex)
+    {
+        ::React::JSValueArray errorArray;
+        errorArray.push_back("EUNSPECIFIED");
+        errorArray.push_back(winrt::to_string(ex.message()));
+        callback(errorArray);
+    }
+    catch (...)
+    {
+        ::React::JSValueArray errorArray;
+        errorArray.push_back("EUNSPECIFIED");
+        errorArray.push_back("Unknown error in fetchBlobForm");
+        callback(errorArray);
+    }
 }
 
 void ReactNativeBlobUtil::fetchBlob(
-    ::React::JSValue&&,
-    std::string,
-    std::string,
-    std::string,
-    ::React::JSValue&&,
-    std::string,
-    std::function<void(::React::JSValueArray const&)> const&
+    ::React::JSValue&& options,
+    std::string taskId,
+    std::string method,
+    std::string url,
+    ::React::JSValue&& headers,
+    std::string body,
+    std::function<void(::React::JSValueArray const&)> const& callback
 ) noexcept
 {
-    // Empty implementation
+    // Convert rvalue references to lvalues for safe use
+    ::React::JSValue& optionsRef = options;
+    ::React::JSValue& headersRef = headers;
+
+    try
+    {
+        winrt::Windows::Web::Http::Filters::HttpBaseProtocolFilter filter;
+        ReactNativeBlobUtilConfig config{ optionsRef };
+        filter.AllowAutoRedirect(false);
+        if (config.trusty)
+        {
+            filter.IgnorableServerCertificateErrors().Append(Cryptography::Certificates::ChainValidationResult::Untrusted);
+        }
+
+        winrt::Windows::Web::Http::HttpClient httpClient{ filter };
+
+        winrt::Windows::Web::Http::HttpMethod httpMethod{ winrt::Windows::Web::Http::HttpMethod::Post() };
+        if (method == "DELETE" || method == "delete")
+        {
+            httpMethod = winrt::Windows::Web::Http::HttpMethod::Delete();
+        }
+        else if (method == "PUT" || method == "put")
+        {
+            httpMethod = winrt::Windows::Web::Http::HttpMethod::Put();
+        }
+        else if (method == "GET" || method == "get")
+        {
+            httpMethod = winrt::Windows::Web::Http::HttpMethod::Get();
+        }
+        else
+        {
+            ::React::JSValueArray errorArray;
+            errorArray.push_back("Method not supported");
+            callback(errorArray);
+            return;
+        }
+
+        winrt::Windows::Web::Http::HttpRequestMessage requestMessage{
+            httpMethod,
+            winrt::Windows::Foundation::Uri{ winrt::to_hstring(url) }
+        };
+
+        std::string prefix = "file://";
+        bool pathToFile = body.rfind(prefix, 0) == 0;
+        if (pathToFile)
+        {
+            std::string contentPath = body.substr(prefix.length());
+            size_t fileLength = contentPath.length();
+            bool hasTrailingSlash = contentPath[fileLength - 1] == '\\' || contentPath[fileLength - 1] == '/';
+            winrt::hstring directoryPath, fileName;
+            splitPath(hasTrailingSlash ? contentPath.substr(0, fileLength - 1) : contentPath, directoryPath, fileName);
+            auto folder = winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(directoryPath).get();
+            auto storageFile = folder.GetFileAsync(fileName).get();
+            auto requestBuffer = winrt::Windows::Storage::FileIO::ReadBufferAsync(storageFile).get();
+
+            winrt::Windows::Web::Http::HttpBufferContent requestContent{ requestBuffer };
+
+            for (const auto& entry : headersRef.AsObject())
+            {
+                if (!requestMessage.Headers().TryAppendWithoutValidation(winrt::to_hstring(entry.first), winrt::to_hstring(entry.second.AsString())))
+                {
+                    requestContent.Headers().TryAppendWithoutValidation(winrt::to_hstring(entry.first), winrt::to_hstring(entry.second.AsString()));
+                }
+            }
+            requestMessage.Content(requestContent);
+        }
+        else if (!body.empty()) {
+            winrt::Windows::Web::Http::HttpStringContent requestString{ winrt::to_hstring(body) };
+
+            for (const auto& entry : headersRef.AsObject())
+            {
+                if (!requestMessage.Headers().TryAppendWithoutValidation(winrt::to_hstring(entry.first), winrt::to_hstring(entry.second.AsString())))
+                {
+                    requestString.Headers().TryAppendWithoutValidation(winrt::to_hstring(entry.first), winrt::to_hstring(entry.second.AsString()));
+                }
+            }
+            requestMessage.Content(requestString);
+        }
+        else {
+            for (const auto& entry : headersRef.AsObject())
+            {
+                requestMessage.Headers().TryAppendWithoutValidation(winrt::to_hstring(entry.first), winrt::to_hstring(entry.second.AsString()));
+            }
+        }
+
+        // Send the request
+        auto response = httpClient.SendRequestAsync(requestMessage).get();
+
+        std::string responseBody;
+        if (response.Content() != nullptr)
+        {
+            responseBody = winrt::to_string(response.Content().ReadAsStringAsync().get());
+        }
+
+        ::React::JSValueArray resultArray;
+        resultArray.push_back(responseBody);
+        callback(resultArray);
+    }
+    catch (const winrt::hresult_error& ex)
+    {
+        ::React::JSValueArray errorArray;
+        errorArray.push_back("EUNSPECIFIED");
+        errorArray.push_back(winrt::to_string(ex.message()));
+        callback(errorArray);
+    }
+    catch (...)
+    {
+        ::React::JSValueArray errorArray;
+        errorArray.push_back("EUNSPECIFIED");
+        errorArray.push_back("Unknown error in fetchBlob");
+        callback(errorArray);
+    }
 }
 
 void ReactNativeBlobUtil::createFile(
@@ -1513,7 +1771,7 @@ void ReactNativeBlobUtil::excludeFromBackupKey(
 void ReactNativeBlobUtil::df(
     std::function<void(::React::JSValueArray const&)> const& callback) noexcept
 {
-    /*winrt::Windows::System::Threading::ThreadPool::RunAsync([callback](auto&&)
+    winrt::Windows::System::Threading::ThreadPool::RunAsync([callback](auto&&)
     {
         try
         {
@@ -1525,7 +1783,7 @@ void ReactNativeBlobUtil::df(
             result["total"] = winrt::unbox_value<uint64_t>(properties.Lookup(L"System.Capacity"));
 
             ::React::JSValueArray arr;
-            arr.push_back(::React::JSValue::Object(std::move(result)));
+            arr.push_back(::React::JSValueObject(std::move(result)));
             callback(arr);
         }
         catch (...)
@@ -1533,10 +1791,10 @@ void ReactNativeBlobUtil::df(
             ::React::JSValueArray arr;
             winrt::Microsoft::ReactNative::JSValueObject error;
             error["error"] = "Failed to get storage usage.";
-            arr.push_back(::React::JSValue::Object(std::move(error)));
+            arr.push_back(::React::JSValueObject(std::move(error)));
             callback(arr);
         }
-    });*/
+    });
 }
 
 void ReactNativeBlobUtil::emitExpiredEvent(

@@ -97,7 +97,7 @@ public:
 struct ReactNativeBlobUtilConfig
 {
 public:
-	ReactNativeBlobUtilConfig(winrt::Microsoft::ReactNative::JSValueObject& options);
+	ReactNativeBlobUtilConfig(::React::JSValue& options);
 
 	bool overwrite;
 	std::chrono::seconds timeout;
