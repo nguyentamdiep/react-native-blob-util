@@ -113,10 +113,10 @@ public:
 struct ReactNativeBlobUtilProgressConfig {
 public:
 	ReactNativeBlobUtilProgressConfig() = default;
-	ReactNativeBlobUtilProgressConfig(int32_t count_, int32_t interval_);
+	ReactNativeBlobUtilProgressConfig(double count_, double interval_);
 	
-	int64_t count{ -1 };
-	int64_t interval{ -1 };
+	double count{ -1.0 };
+	double interval{ -1.0 };
 };
 
 namespace winrt::ReactNativeBlobUtil

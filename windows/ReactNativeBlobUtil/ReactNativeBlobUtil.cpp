@@ -142,7 +142,7 @@ ReactNativeBlobUtilConfig::ReactNativeBlobUtilConfig(winrt::Microsoft::ReactNati
 
 }
 
-ReactNativeBlobUtilProgressConfig::ReactNativeBlobUtilProgressConfig(int32_t count_, int32_t interval_) : count(count_), interval(interval_) {
+ReactNativeBlobUtilProgressConfig::ReactNativeBlobUtilProgressConfig(double count_, double interval_) : count(count_), interval(interval_) {
 }
 
 ReactNativeBlobUtilStream::ReactNativeBlobUtilStream(Streams::IRandomAccessStream& _streamInstance, EncodingOptions _encoding) noexcept
@@ -621,7 +621,28 @@ void ReactNativeBlobUtil::closeStream(
     std::string streamId,
     std::function<void(::React::JSValueArray const&)> const& callback) noexcept
 {
-    callback(::React::JSValueArray{});
+    ::React::JSValueArray resultArray;
+    try
+    {
+        auto it = m_streamMap.find(streamId);
+        if (it != m_streamMap.end()) {
+            it->second.streamInstance.Close();
+            m_streamMap.erase(it);
+            // Success: return empty array
+            callback(resultArray);
+        } else {
+            // Stream not found
+            resultArray.push_back("EUNSPECIFIED");
+            resultArray.push_back("Stream not found for id: " + streamId);
+            callback(resultArray);
+        }
+    }
+    catch (const winrt::hresult_error& ex)
+    {
+        resultArray.push_back("EUNSPECIFIED");
+        resultArray.push_back(winrt::to_string(ex.message()));
+        callback(resultArray);
+    }
 }
 
 void ReactNativeBlobUtil::unlink(
@@ -667,7 +688,29 @@ void ReactNativeBlobUtil::removeSession(
     ::React::JSValueArray&& paths,
     std::function<void(::React::JSValueArray const&)> const& callback) noexcept
 {
-    callback(::React::JSValueArray{});
+    winrt::Windows::System::Threading::ThreadPool::RunAsync([paths = std::move(paths), callback](auto&&)
+    {
+        ::React::JSValueArray resultArray;
+        try
+        {
+            for (const auto& path : paths)
+            {
+                std::filesystem::path toDelete{ path.AsString() };
+                toDelete.make_preferred();
+                auto fileOp = winrt::Windows::Storage::StorageFile::GetFileFromPathAsync(winrt::to_hstring(toDelete.c_str()));
+                auto file = fileOp.get();
+                file.DeleteAsync().get();
+            }
+            // Success: return empty array
+            callback(resultArray);
+        }
+        catch (const winrt::hresult_error& ex)
+        {
+            resultArray.push_back("EUNSPECIFIED");
+            resultArray.push_back(winrt::to_string(ex.message()));
+            callback(resultArray);
+        }
+    });
 }
 
 void ReactNativeBlobUtil::ls(
@@ -1349,7 +1392,19 @@ void ReactNativeBlobUtil::cancelRequest(
     std::string taskId,
     std::function<void(::React::JSValueArray const&)> const& callback) noexcept
 {
-    callback(::React::JSValueArray{});
+    ::React::JSValueArray resultArray;
+    try
+    {
+        m_tasks.Cancel(taskId);
+        // Success: return empty array
+        callback(resultArray);
+    }
+    catch (const winrt::hresult_error& ex)
+    {
+        resultArray.push_back("EUNSPECIFIED");
+        resultArray.push_back(winrt::to_string(ex.message()));
+        callback(resultArray);
+    }
 }
 
 void ReactNativeBlobUtil::enableProgressReport(
@@ -1357,7 +1412,9 @@ void ReactNativeBlobUtil::enableProgressReport(
     double interval,
     double count) noexcept
 {
-    // No-op
+    ReactNativeBlobUtilProgressConfig config{ count, interval };
+	std::scoped_lock lock{ m_mutex };
+	downloadProgressMap.try_emplace(taskId, config);
 }
 
 void ReactNativeBlobUtil::enableUploadProgressReport(
@@ -1365,7 +1422,9 @@ void ReactNativeBlobUtil::enableUploadProgressReport(
     double interval,
     double count) noexcept
 {
-    // No-op
+	ReactNativeBlobUtilProgressConfig config{ count, interval };
+	std::scoped_lock lock{ m_mutex };
+	uploadProgressMap.try_emplace(taskId, config);
 }
 
 void ReactNativeBlobUtil::slice(
