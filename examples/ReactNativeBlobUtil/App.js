@@ -8,7 +8,7 @@
 
 import React, {useState} from 'react';
 import {Alert, Button, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View} from 'react-native';
-import {Picker} from '@react-native-picker/picker';
+// import {Picker} from '@react-native-picker/picker'; Need to remove this package as it is not supported in Windows New Architecture
 
 import {Colors} from 'react-native/Libraries/NewAppScreen';
 
@@ -608,14 +608,6 @@ const App: () => React$Node = () => {
                             <Text style={styles.sectionTitle}>{'Hash - hash()'}</Text>
                             <View style={styles.sectionDescription}>
                                 <TextInput style={styles.input} placeholder="Source path" onChangeText={(hashPathParam) => setHashPathParam(hashPathParam)} placeholderTextColor="#9a73ef" autoCapitalize="none" />
-                                <Picker hashAlgValue={hashAlgValue} onChangeText={(readPositionParam) => setReadPositionParam(readPositionParam)} style={{height: 50, width: 150}} onValueChange={(itemValue, itemIndex) => setHashAlgValue(itemValue)}>
-                                    <Picker.Item label="MD5" value="md5" />
-                                    <Picker.Item label="SHA1" value="sha1" />
-                                    <Picker.Item label="SHA224" value="sha224" />
-                                    <Picker.Item label="SHA256" value="sha256" />
-                                    <Picker.Item label="SHA384" value="sha384" />
-                                    <Picker.Item label="SHA512" value="sha512" />
-                                </Picker>
                             </View>
                             <Button title="Hash File" color="#9a73ef" onPress={hashCall} />
                         </View>
@@ -627,12 +619,6 @@ const App: () => React$Node = () => {
                             <View style={styles.sectionDescription}>
                                 <TextInput style={styles.input} placeholder="Source path" onChangeText={(writeParam) => setWriteParam(writeParam)} placeholderTextColor="#9a73ef" autoCapitalize="none" />
                                 <TextInput style={styles.input} placeholder="Source path" onChangeText={(writeURIParam) => setWriteURIParam(writeURIParam)} placeholderTextColor="#9a73ef" autoCapitalize="none" />
-                                <Picker writeEncodeStreamParam={writeEncodeParam} onChangeText={(readPositionParam) => setReadPositionParam(readPositionParam)} style={{height: 50, width: 150}} onValueChange={(itemValue, itemIndex) => setWriteEncodeParam(itemValue)}>
-                                    <Picker.Item label="UTF8" value="utf8" />
-                                    <Picker.Item label="Base64" value="base64" />
-                                    <Picker.Item label="ASCII" value="ascii" />
-                                    <Picker.Item label="URI" value="uri" />
-                                </Picker>
                             </View>
                             <Button title="Write" color="#9a73ef" onPress={writeFileCall} />
                             <Button title="Append" color="#9a73ef" onPress={appendFileCall} />
@@ -644,12 +630,6 @@ const App: () => React$Node = () => {
                             <Text style={styles.sectionTitle}>{'WriteStream - writeStream()'}</Text>
                             <View style={styles.sectionDescription}>
                                 <TextInput style={styles.input} placeholder="Source path" onChangeText={(writeStreamParam) => setWriteStreamParam(writeStreamParam)} placeholderTextColor="#9a73ef" autoCapitalize="none" />
-
-                                <Picker writeEncodeStreamParam={writeEncodeStreamParam} onChangeText={(readPositionParam) => setReadPositionParam(readPositionParam)} style={{height: 50, width: 150}} onValueChange={(itemValue, itemIndex) => setWriteStreamEncodeParam(itemValue)}>
-                                    <Picker.Item label="UTF8" value="utf8" />
-                                    <Picker.Item label="Base64" value="base64" />
-                                    <Picker.Item label="ASCII" value="ascii" />
-                                </Picker>
                             </View>
                             <Button title="Write" color="#9a73ef" onPress={writeStreamCall} />
                             <Button title="Append" color="#9a73ef" onPress={appendStreamCall} />
@@ -661,12 +641,6 @@ const App: () => React$Node = () => {
                             <Text style={styles.sectionTitle}>{'ReadStream - readStream()'}</Text>
                             <View style={styles.sectionDescription}>
                                 <TextInput style={styles.input} placeholder="Source path" onChangeText={(readStreamParam) => setReadStreamParam(readStreamParam)} placeholderTextColor="#9a73ef" autoCapitalize="none" />
-
-                                <Picker readEncodeStreamParam={readEncodeStreamParam} onChangeText={(readPositionParam) => setReadPositionParam(readPositionParam)} style={{height: 50, width: 150}} onValueChange={(itemValue, itemIndex) => setReadStreamEncodeParam(itemValue)}>
-                                    <Picker.Item label="UTF8" value="utf8" />
-                                    <Picker.Item label="Base64" value="base64" />
-                                    <Picker.Item label="ASCII" value="ascii" />
-                                </Picker>
                             </View>
                             <Button title="Read" color="#9a73ef" onPress={readStreamCall} />
                         </View>

@@ -21,9 +21,9 @@ const config = {
   //
   resolver: {
     extraNodeModules: {
-      "react-native-blob-util": path.resolve(
+      'react-native-blob-util': path.resolve(
         __dirname,
-        "../../"
+        '../../'
       ),
     },
     blockList: exclusionList([
@@ -38,6 +38,12 @@ const config = {
     ]),
     //
   },
+  watchFolders: [
+    // This allows us to use the local version of react-native-windows
+    rnwPath,
+    // This allows us to use the local version of react-native-blob-util
+    path.resolve(__dirname, '../../'),
+  ],
   transformer: {
     getTransformOptions: async () => ({
       transform: {
