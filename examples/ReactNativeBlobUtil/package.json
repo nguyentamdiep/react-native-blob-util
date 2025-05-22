@@ -8,7 +8,7 @@
     "start": "react-native start",
     "test": "jest",
     "lint": "eslint .",
-    "windows": "npx @react-native-community/cli run-windows",
+    "windows": "npx @react-native-community/cli run-windows --release",
     "test:windows": "jest --config jest.config.windows.js"
   },
   "dependencies": {
