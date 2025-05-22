@@ -7,7 +7,7 @@
  */
 
 import React, {useState} from 'react';
-import {Alert, Button, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View} from 'react-native';
+import {Alert, Button, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 // import {Picker} from '@react-native-picker/picker'; Need to remove this package as it is not supported in Windows New Architecture
 
 import {Colors} from 'react-native/Libraries/NewAppScreen';
@@ -489,8 +489,7 @@ const App: () => React$Node = () => {
     // App ************************************************************************
     return (
         <>
-            <StatusBar barStyle="dark-content" />
-            <SafeAreaView>
+            <View>
                 <ScrollView contentInsetAdjustmentBehavior="automatic" style={styles.scrollView}>
                     {global.HermesInternal == null ? null : (
                         <View style={styles.engine}>
@@ -729,7 +728,7 @@ const App: () => React$Node = () => {
                         </View>
                     </View>
                 </ScrollView>
-            </SafeAreaView>
+            </View>
         </>
     );
 };
