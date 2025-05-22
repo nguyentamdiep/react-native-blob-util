@@ -12,34 +12,6 @@
           "Microsoft.Windows.SDK.BuildTools": "10.0.22621.756"
         }
       },
-      "boost": {
-        "type": "Transitive",
-        "resolved": "1.83.0",
-        "contentHash": "cy53VNMzysEMvhBixDe8ujPk67Fcj3v6FPHQnH91NYJNLHpc6jxa2xq9ruCaaJjE4M3YrGSHDi4uUSTGBWw6EQ=="
-      },
-      "Microsoft.JavaScript.Hermes": {
-        "type": "Transitive",
-        "resolved": "0.1.23",
-        "contentHash": "cA9t1GjY4Yo0JD1AfA//e1lOwk48hLANfuX6GXrikmEBNZVr2TIX5ONJt5tqCnpZyLz6xGiPDgTfFNKbSfb21g=="
-      },
-      "Microsoft.ReactNative": {
-        "type": "Transitive",
-        "resolved": "0.76.13-Fabric",
-        "contentHash": "27knHk/oMl4BoTERHHJjGFR0+siIjJSxpXGf4SE2yMMqh23E8ldh/Y+vj9Rdegw5ImYE2Vv1AAWUT2AVxWIpeQ=="
-      },
-      "Microsoft.ReactNative.Cxx": {
-        "type": "Transitive",
-        "resolved": "0.76.13-Fabric",
-        "contentHash": "xc5bToQBHt0BBkFQcaFG6fAdquYGHLdCaxqwwkUTpLIxfqPOIHFXHv5ADm/9KvzlXbW/4RjtT5zUzIZoBf4N1w==",
-        "dependencies": {
-          "Microsoft.ReactNative": "0.76.13-Fabric"
-        }
-      },
-      "Microsoft.VCRTForwarders.140": {
-        "type": "Transitive",
-        "resolved": "1.0.2-rc",
-        "contentHash": "/r+sjtEeCIGyDhobIZ5hSmYhC/dSyGZxf1SxYJpElUhB0LMCktOMFs9gXrauXypIFECpVynNyVjAmJt6hjJ5oQ=="
-      },
       "Microsoft.Web.WebView2": {
         "type": "Transitive",
         "resolved": "1.0.2903.40",
@@ -51,25 +23,12 @@
         "contentHash": "7ZL2sFSioYm1Ry067Kw1hg0SCcW5kuVezC2SwjGbcPE61Nn+gTbH86T73G3LcEOVj0S3IZzNuE/29gZvOLS7VA=="
       },
       "reactnativeblobutil": {
-        "type": "Project",
-        "dependencies": {
-          "Microsoft.ReactNative": "[0.76.13-Fabric, )",
-          "Microsoft.ReactNative.Cxx": "[0.76.13-Fabric, )",
-          "Microsoft.VCRTForwarders.140": "[1.0.2-rc, )",
-          "Microsoft.WindowsAppSDK": "[1.7.250401001, )",
-          "boost": "[1.83.0, )"
-        }
+        "type": "Project"
       },
       "reactnativeblobutilwin": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.JavaScript.Hermes": "[0.1.23, )",
-          "Microsoft.ReactNative": "[0.76.13-Fabric, )",
-          "Microsoft.ReactNative.Cxx": "[0.76.13-Fabric, )",
-          "Microsoft.VCRTForwarders.140": "[1.0.2-rc, )",
-          "Microsoft.WindowsAppSDK": "[1.7.250401001, )",
-          "ReactNativeBlobUtil": "[1.0.0, )",
-          "boost": "[1.83.0, )"
+          "ReactNativeBlobUtil": "[1.0.0, )"
         }
       }
     },
@@ -83,16 +42,6 @@
           "Microsoft.Web.WebView2": "1.0.2903.40",
           "Microsoft.Windows.SDK.BuildTools": "10.0.22621.756"
         }
-      },
-      "Microsoft.ReactNative": {
-        "type": "Transitive",
-        "resolved": "0.76.13-Fabric",
-        "contentHash": "27knHk/oMl4BoTERHHJjGFR0+siIjJSxpXGf4SE2yMMqh23E8ldh/Y+vj9Rdegw5ImYE2Vv1AAWUT2AVxWIpeQ=="
-      },
-      "Microsoft.VCRTForwarders.140": {
-        "type": "Transitive",
-        "resolved": "1.0.2-rc",
-        "contentHash": "/r+sjtEeCIGyDhobIZ5hSmYhC/dSyGZxf1SxYJpElUhB0LMCktOMFs9gXrauXypIFECpVynNyVjAmJt6hjJ5oQ=="
       },
       "Microsoft.Web.WebView2": {
         "type": "Transitive",
@@ -111,16 +60,6 @@
           "Microsoft.Windows.SDK.BuildTools": "10.0.22621.756"
         }
       },
-      "Microsoft.ReactNative": {
-        "type": "Transitive",
-        "resolved": "0.76.13-Fabric",
-        "contentHash": "27knHk/oMl4BoTERHHJjGFR0+siIjJSxpXGf4SE2yMMqh23E8ldh/Y+vj9Rdegw5ImYE2Vv1AAWUT2AVxWIpeQ=="
-      },
-      "Microsoft.VCRTForwarders.140": {
-        "type": "Transitive",
-        "resolved": "1.0.2-rc",
-        "contentHash": "/r+sjtEeCIGyDhobIZ5hSmYhC/dSyGZxf1SxYJpElUhB0LMCktOMFs9gXrauXypIFECpVynNyVjAmJt6hjJ5oQ=="
-      },
       "Microsoft.Web.WebView2": {
         "type": "Transitive",
         "resolved": "1.0.2903.40",
@@ -137,16 +76,6 @@
           "Microsoft.Web.WebView2": "1.0.2903.40",
           "Microsoft.Windows.SDK.BuildTools": "10.0.22621.756"
         }
-      },
-      "Microsoft.ReactNative": {
-        "type": "Transitive",
-        "resolved": "0.76.13-Fabric",
-        "contentHash": "27knHk/oMl4BoTERHHJjGFR0+siIjJSxpXGf4SE2yMMqh23E8ldh/Y+vj9Rdegw5ImYE2Vv1AAWUT2AVxWIpeQ=="
-      },
-      "Microsoft.VCRTForwarders.140": {
-        "type": "Transitive",
-        "resolved": "1.0.2-rc",
-        "contentHash": "/r+sjtEeCIGyDhobIZ5hSmYhC/dSyGZxf1SxYJpElUhB0LMCktOMFs9gXrauXypIFECpVynNyVjAmJt6hjJ5oQ=="
       },
       "Microsoft.Web.WebView2": {
         "type": "Transitive",
@@ -165,16 +94,6 @@
           "Microsoft.Windows.SDK.BuildTools": "10.0.22621.756"
         }
       },
-      "Microsoft.ReactNative": {
-        "type": "Transitive",
-        "resolved": "0.76.13-Fabric",
-        "contentHash": "27knHk/oMl4BoTERHHJjGFR0+siIjJSxpXGf4SE2yMMqh23E8ldh/Y+vj9Rdegw5ImYE2Vv1AAWUT2AVxWIpeQ=="
-      },
-      "Microsoft.VCRTForwarders.140": {
-        "type": "Transitive",
-        "resolved": "1.0.2-rc",
-        "contentHash": "/r+sjtEeCIGyDhobIZ5hSmYhC/dSyGZxf1SxYJpElUhB0LMCktOMFs9gXrauXypIFECpVynNyVjAmJt6hjJ5oQ=="
-      },
       "Microsoft.Web.WebView2": {
         "type": "Transitive",
         "resolved": "1.0.2903.40",
@@ -191,16 +110,6 @@
           "Microsoft.Web.WebView2": "1.0.2903.40",
           "Microsoft.Windows.SDK.BuildTools": "10.0.22621.756"
         }
-      },
-      "Microsoft.ReactNative": {
-        "type": "Transitive",
-        "resolved": "0.76.13-Fabric",
-        "contentHash": "27knHk/oMl4BoTERHHJjGFR0+siIjJSxpXGf4SE2yMMqh23E8ldh/Y+vj9Rdegw5ImYE2Vv1AAWUT2AVxWIpeQ=="
-      },
-      "Microsoft.VCRTForwarders.140": {
-        "type": "Transitive",
-        "resolved": "1.0.2-rc",
-        "contentHash": "/r+sjtEeCIGyDhobIZ5hSmYhC/dSyGZxf1SxYJpElUhB0LMCktOMFs9gXrauXypIFECpVynNyVjAmJt6hjJ5oQ=="
       },
       "Microsoft.Web.WebView2": {
         "type": "Transitive",
@@ -219,16 +128,6 @@
           "Microsoft.Windows.SDK.BuildTools": "10.0.22621.756"
         }
       },
-      "Microsoft.ReactNative": {
-        "type": "Transitive",
-        "resolved": "0.76.13-Fabric",
-        "contentHash": "27knHk/oMl4BoTERHHJjGFR0+siIjJSxpXGf4SE2yMMqh23E8ldh/Y+vj9Rdegw5ImYE2Vv1AAWUT2AVxWIpeQ=="
-      },
-      "Microsoft.VCRTForwarders.140": {
-        "type": "Transitive",
-        "resolved": "1.0.2-rc",
-        "contentHash": "/r+sjtEeCIGyDhobIZ5hSmYhC/dSyGZxf1SxYJpElUhB0LMCktOMFs9gXrauXypIFECpVynNyVjAmJt6hjJ5oQ=="
-      },
       "Microsoft.Web.WebView2": {
         "type": "Transitive",
         "resolved": "1.0.2903.40",
@@ -245,16 +144,6 @@
           "Microsoft.Web.WebView2": "1.0.2903.40",
           "Microsoft.Windows.SDK.BuildTools": "10.0.22621.756"
         }
-      },
-      "Microsoft.ReactNative": {
-        "type": "Transitive",
-        "resolved": "0.76.13-Fabric",
-        "contentHash": "27knHk/oMl4BoTERHHJjGFR0+siIjJSxpXGf4SE2yMMqh23E8ldh/Y+vj9Rdegw5ImYE2Vv1AAWUT2AVxWIpeQ=="
-      },
-      "Microsoft.VCRTForwarders.140": {
-        "type": "Transitive",
-        "resolved": "1.0.2-rc",
-        "contentHash": "/r+sjtEeCIGyDhobIZ5hSmYhC/dSyGZxf1SxYJpElUhB0LMCktOMFs9gXrauXypIFECpVynNyVjAmJt6hjJ5oQ=="
       },
       "Microsoft.Web.WebView2": {
         "type": "Transitive",
