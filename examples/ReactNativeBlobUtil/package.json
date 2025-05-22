@@ -27,7 +27,8 @@
     "metro-react-native-babel-preset": "0.72.3",
     "react-test-renderer": "18.1.0",
     "@rnx-kit/jest-preset": "^0.1.17",
-    "@react-native/metro-config": "^0.76.9"
+    "@react-native/metro-config": "^0.76.9",
+    "@react-native/babel-preset": "^0.76.1"
   },
   "jest": {
     "preset": "react-native"
