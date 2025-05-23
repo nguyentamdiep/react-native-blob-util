@@ -95,6 +95,9 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+# packages
+windows/packages/
+
 # BUCK
 buck-out/
 \.buckd/

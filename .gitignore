@@ -31,6 +31,9 @@ project.xcworkspace
 Podfile*
 contents.xcworkspacedata
 
+# packages
+windows/packages/
+
 # VSCode
 #
 .vscode
