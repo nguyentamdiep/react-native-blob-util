@@ -183,14 +183,14 @@ namespace winrt::ReactNativeBlobUtil
         return constants;
     }
 
-    void ReactNativeBlobUtil::fetchBlobForm(
-        ::React::JSValue&& options,
+    winrt::fire_and_forget ReactNativeBlobUtil::fetchBlobForm(
+        ::React::JSValue options,
         std::string taskId,
         std::string method,
         std::string url,
-        ::React::JSValue&& headers,
-        ::React::JSValueArray&& body,
-        std::function<void(::React::JSValueArray const&)> const& callback
+        ::React::JSValue headers,
+        ::React::JSValueArray body,
+        std::function<void(::React::JSValueArray)> callback
     ) noexcept
     {
         try
@@ -217,8 +217,8 @@ namespace winrt::ReactNativeBlobUtil
             {
                 ::React::JSValueArray errorArray;
                 errorArray.push_back("Method not supported");
-                callback(errorArray);
-                return;
+                callback(std::move(errorArray));
+                co_return;
             }
 
             winrt::Windows::Web::Http::HttpRequestMessage requestMessage{ httpMethod, winrt::Windows::Foundation::Uri{ winrt::to_hstring(url) } };
@@ -316,32 +316,32 @@ namespace winrt::ReactNativeBlobUtil
 
             ::React::JSValueArray resultArray;
             resultArray.push_back(responseBody);
-            callback(resultArray);
+            callback(std::move(resultArray));
         }
         catch (const winrt::hresult_error& ex)
         {
             ::React::JSValueArray errorArray;
             errorArray.push_back("EUNSPECIFIED");
             errorArray.push_back(winrt::to_string(ex.message()));
-            callback(errorArray);
+            callback(std::move(errorArray));
         }
         catch (...)
         {
             ::React::JSValueArray errorArray;
             errorArray.push_back("EUNSPECIFIED");
             errorArray.push_back("Unknown error in fetchBlobForm");
-            callback(errorArray);
+            callback(std::move(errorArray));
         }
     }
 
-    void ReactNativeBlobUtil::fetchBlob(
-        ::React::JSValue&& options,
+    winrt::fire_and_forget ReactNativeBlobUtil::fetchBlob(
+        ::React::JSValue options,
         std::string taskId,
         std::string method,
         std::string url,
-        ::React::JSValue&& headers,
+        ::React::JSValue headers,
         std::string body,
-        std::function<void(::React::JSValueArray const&)> const& callback
+        std::function<void(::React::JSValueArray)> callback
     ) noexcept
     {
         // Convert rvalue references to lvalues for safe use
@@ -377,8 +377,8 @@ namespace winrt::ReactNativeBlobUtil
             {
                 ::React::JSValueArray errorArray;
                 errorArray.push_back("Method not supported");
-                callback(errorArray);
-                return;
+                callback(std::move(errorArray));
+                co_return;
             }
 
             winrt::Windows::Web::Http::HttpRequestMessage requestMessage{
@@ -440,21 +440,21 @@ namespace winrt::ReactNativeBlobUtil
 
             ::React::JSValueArray resultArray;
             resultArray.push_back(responseBody);
-            callback(resultArray);
+            callback(std::move(resultArray));
         }
         catch (const winrt::hresult_error& ex)
         {
             ::React::JSValueArray errorArray;
             errorArray.push_back("EUNSPECIFIED");
             errorArray.push_back(winrt::to_string(ex.message()));
-            callback(errorArray);
+            callback(std::move(errorArray));
         }
         catch (...)
         {
             ::React::JSValueArray errorArray;
             errorArray.push_back("EUNSPECIFIED");
             errorArray.push_back("Unknown error in fetchBlob");
-            callback(errorArray);
+            callback(std::move(errorArray));
         }
     }
 
@@ -526,7 +526,7 @@ namespace winrt::ReactNativeBlobUtil
     catch (const hresult_error& ex)
     {
         hresult result{ ex.code() };
-        if (result == 0x80070002) // FileNotFoundException
+        if (result == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) // FileNotFoundException
         {
             promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "ENOENT", "ENOENT: File does not exist and could not be created; " + path });
         }
@@ -537,49 +537,154 @@ namespace winrt::ReactNativeBlobUtil
     }
 }
 
-void ReactNativeBlobUtil::createFileASCII(
-    std::string path,
-    ::React::JSValueArray&& dataArray,
-    ::React::ReactPromise<void>&& promise) noexcept
-{
-    try
-    {
-        std::vector<uint8_t> data;
-        data.reserve(dataArray.size());
-        for (auto& var : dataArray)
+    winrt::fire_and_forget ReactNativeBlobUtil::createFileASCII(
+        std::string path,
+        winrt::Microsoft::ReactNative::JSValueArray dataArray,
+        winrt::Microsoft::ReactNative::ReactPromise<void> promise) noexcept {
+        try
         {
-            data.push_back(var.AsUInt8());
+            std::vector<uint8_t> data;
+            data.reserve(dataArray.size());
+            for (auto& var : dataArray)
+            {
+                data.push_back(var.AsUInt8());
+            }
+
+            Streams::IBuffer buffer{ CryptographicBuffer::CreateFromByteArray(data) };
+
+            winrt::hstring directoryPath, fileName;
+            splitPath(path, directoryPath, fileName);
+
+            StorageFolder folder{ co_await StorageFolder::GetFolderFromPathAsync(directoryPath) };
+
+            StorageFile file{ co_await folder.CreateFileAsync(fileName, CreationCollisionOption::FailIfExists) };
+            Streams::IRandomAccessStream stream{ co_await file.OpenAsync(FileAccessMode::ReadWrite) };
+            co_await stream.WriteAsync(buffer);
+
+            promise.Resolve();
         }
-
-        Streams::IBuffer buffer{ CryptographicBuffer::CreateFromByteArray(data) };
-
-        winrt::hstring directoryPath, fileName;
-        splitPath(path, directoryPath, fileName);
-
-        auto folder = winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(directoryPath).get();
-        auto file = folder.CreateFileAsync(fileName, winrt::Windows::Storage::CreationCollisionOption::FailIfExists).get();
-        auto stream = file.OpenAsync(winrt::Windows::Storage::FileAccessMode::ReadWrite).get();
-        stream.WriteAsync(buffer).get();
-
-        promise.Resolve();
+        catch (const hresult_error& ex)
+        {
+            hresult result{ ex.code() };
+            if (result == 0x80070002) // FileNotFoundException
+            {
+                promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "ENOENT", "ENOENT: File does not exist and could not be created; " + path });
+            }
+            else if (result == 0x80070050)
+            {
+                promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "EEXIST", "EEXIST: File already exists; " + path });
+            }
+            else
+            {
+                promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "EUNSPECIFIED", "EUNSPECIFIED: " + winrt::to_string(ex.message()) });
+            }
+        }
     }
-    catch (const winrt::hresult_error& ex)
+
+    winrt::fire_and_forget ReactNativeBlobUtil::writeFile(
+        std::string path,
+        std::string encoding,
+        std::wstring data,
+        bool transformFile,
+        bool append,
+        winrt::Microsoft::ReactNative::ReactPromise<double> promise) noexcept
     {
-        winrt::hresult result{ ex.code() };
-        if (result == 0x80070002) // FileNotFoundException
+        try
         {
-            promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "ENOENT", "ENOENT: File does not exist and could not be created; " + path });
+            Streams::IBuffer buffer;
+            if (encoding.compare("utf8") == 0)
+            {
+                buffer = Cryptography::CryptographicBuffer::ConvertStringToBinary(data, BinaryStringEncoding::Utf8);
+            }
+            else if (encoding.compare("base64") == 0)
+            {
+                buffer = Cryptography::CryptographicBuffer::DecodeFromBase64String(data);
+            }
+            else if (encoding.compare("uri") == 0)
+            {
+                winrt::hstring srcDirectoryPath, srcFileName;
+                splitPath(data, srcDirectoryPath, srcFileName);
+                StorageFolder srcFolder{ co_await StorageFolder::GetFolderFromPathAsync(srcDirectoryPath) };
+                StorageFile srcFile{ co_await srcFolder.GetFileAsync(srcFileName) };
+                buffer = co_await FileIO::ReadBufferAsync(srcFile);
+            }
+            else
+            {
+                auto errorMessage{ "Invalid encoding: " + encoding };
+                promise.Reject(errorMessage.c_str());
+            }
+
+            winrt::hstring destDirectoryPath, destFileName;
+            splitPath(path, destDirectoryPath, destFileName);
+            StorageFolder destFolder{ co_await StorageFolder::GetFolderFromPathAsync(destDirectoryPath) };
+            StorageFile destFile{ nullptr };
+            if (append)
+            {
+                destFile = co_await destFolder.CreateFileAsync(destFileName, CreationCollisionOption::OpenIfExists);
+            }
+            else
+            {
+                destFile = co_await destFolder.CreateFileAsync(destFileName, CreationCollisionOption::ReplaceExisting);
+            }
+            Streams::IRandomAccessStream stream{ co_await destFile.OpenAsync(FileAccessMode::ReadWrite) };
+
+            if (append)
+            {
+                stream.Seek(UINT64_MAX);
+            }
+            co_await stream.WriteAsync(buffer);
+            promise.Resolve(static_cast<double>(buffer.Length()));
         }
-        else if (result == 0x80070050)
+        catch (const hresult_error& ex)
         {
-            promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "EEXIST", "EEXIST: File already exists; " + path });
-        }
-        else
-        {
-            promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "EUNSPECIFIED", "EUNSPECIFIED: " + winrt::to_string(ex.message()) });
+            promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "EUNSPECIFIED", "EUNSPECIFIED: " + winrt::to_string(ex.message()) + "; " + path });
         }
     }
-}
+
+    winrt::fire_and_forget ReactNativeBlobUtil::writeFileArray(
+        std::string path,
+        winrt::Microsoft::ReactNative::JSValueArray dataArray,
+        bool append,
+        winrt::Microsoft::ReactNative::ReactPromise<double> promise) noexcept
+    {
+        try
+        {
+            std::vector<uint8_t> data;
+            data.reserve(dataArray.size());
+            for (auto& var : dataArray)
+            {
+                data.push_back(var.AsUInt8());
+            }
+            Streams::IBuffer buffer{ CryptographicBuffer::CreateFromByteArray(data) };
+
+            winrt::hstring destDirectoryPath, destFileName;
+            splitPath(path, destDirectoryPath, destFileName);
+            StorageFolder destFolder{ co_await StorageFolder::GetFolderFromPathAsync(destDirectoryPath) };
+            StorageFile destFile{ nullptr };
+            if (append)
+            {
+                destFile = co_await destFolder.CreateFileAsync(destFileName, CreationCollisionOption::OpenIfExists);
+            }
+            else
+            {
+                destFile = co_await destFolder.CreateFileAsync(destFileName, CreationCollisionOption::ReplaceExisting);
+            }
+            Streams::IRandomAccessStream stream{ co_await destFile.OpenAsync(FileAccessMode::ReadWrite) };
+
+            if (append)
+            {
+                stream.Seek(UINT64_MAX);
+            }
+            co_await stream.WriteAsync(buffer);
+            promise.Resolve(static_cast<double>(buffer.Length()));
+
+            co_return;
+        }
+        catch (const hresult_error& ex)
+        {
+            promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "EUNSPECIFIED", "EUNSPECIFIED: " + winrt::to_string(ex.message()) + "; " + path });
+        }
+    }
 
 void ReactNativeBlobUtil::pathForAppGroup(
     std::string groupName,
@@ -613,123 +718,11 @@ void ReactNativeBlobUtil::exists(
     }
 }
 
-void ReactNativeBlobUtil::writeFile(
-    std::string path,
-    std::string encoding,
-    std::string data,
-    bool transformFile,
-    bool append,
-    ::React::ReactPromise<double>&& promise) noexcept
-{
-    try
-    {
-        Streams::IBuffer buffer{ nullptr };
-        if (encoding == "utf8")
-        {
-            buffer = Cryptography::CryptographicBuffer::ConvertStringToBinary(
-                winrt::to_hstring(data), BinaryStringEncoding::Utf8);
-        }
-        else if (encoding == "base64")
-        {
-            buffer = Cryptography::CryptographicBuffer::DecodeFromBase64String(winrt::to_hstring(data));
-        }
-        else if (encoding == "uri")
-        {
-            winrt::hstring srcDirectoryPath, srcFileName;
-            splitPath(data, srcDirectoryPath, srcFileName);
-            auto srcFolder = StorageFolder::GetFolderFromPathAsync(srcDirectoryPath).get();
-            auto srcFile = srcFolder.GetFileAsync(srcFileName).get();
-            buffer = FileIO::ReadBufferAsync(srcFile).get();
-        }
-        else
-        {
-            auto errorMessage{ "Invalid encoding: " + encoding };
-            promise.Reject(errorMessage.c_str());
-            return;
-        }
-
-        winrt::hstring destDirectoryPath, destFileName;
-        splitPath(path, destDirectoryPath, destFileName);
-        auto destFolder = StorageFolder::GetFolderFromPathAsync(destDirectoryPath).get();
-        StorageFile destFile{ nullptr };
-        if (append)
-        {
-            destFile = destFolder.CreateFileAsync(destFileName, CreationCollisionOption::OpenIfExists).get();
-        }
-        else
-        {
-            destFile = destFolder.CreateFileAsync(destFileName, CreationCollisionOption::ReplaceExisting).get();
-        }
-        auto stream = destFile.OpenAsync(FileAccessMode::ReadWrite).get();
-
-        if (append)
-        {
-            stream.Seek(UINT64_MAX);
-        }
-        stream.WriteAsync(buffer).get();
-        promise.Resolve(static_cast<double>(buffer.Length()));
-    }
-    catch (const winrt::hresult_error& ex)
-    {
-        promise.Reject(winrt::Microsoft::ReactNative::ReactError{
-            "EUNSPECIFIED",
-            "EUNSPECIFIED: " + winrt::to_string(ex.message()) + "; " + path
-        });
-    }
-}
-
-void ReactNativeBlobUtil::writeFileArray(
-    std::string path,
-    ::React::JSValueArray&& dataArray,
-    bool append,
-    ::React::ReactPromise<double>&& promise) noexcept
-{
-    try
-    {
-        std::vector<uint8_t> data;
-        data.reserve(dataArray.size());
-        for (auto& var : dataArray)
-        {
-            data.push_back(var.AsUInt8());
-        }
-        Streams::IBuffer buffer{ CryptographicBuffer::CreateFromByteArray(data) };
-
-        winrt::hstring destDirectoryPath, destFileName;
-        splitPath(path, destDirectoryPath, destFileName);
-
-        auto destFolder = StorageFolder::GetFolderFromPathAsync(destDirectoryPath).get();
-        StorageFile destFile{ nullptr };
-        if (append)
-        {
-            destFile = destFolder.CreateFileAsync(destFileName, CreationCollisionOption::OpenIfExists).get();
-        }
-        else
-        {
-            destFile = destFolder.CreateFileAsync(destFileName, CreationCollisionOption::ReplaceExisting).get();
-        }
-        auto stream = destFile.OpenAsync(FileAccessMode::ReadWrite).get();
-
-        if (append)
-        {
-            stream.Seek(UINT64_MAX);
-        }
-        stream.WriteAsync(buffer).get();
-        promise.Resolve(static_cast<double>(buffer.Length()));
-    }
-    catch (const winrt::hresult_error& ex)
-    {
-        promise.Reject(winrt::Microsoft::ReactNative::ReactError{
-            "EUNSPECIFIED",
-            "EUNSPECIFIED: " + winrt::to_string(ex.message()) + "; " + path
-        });
-    }
-}
-
-void ReactNativeBlobUtil::writeStream(
+winrt::fire_and_forget ReactNativeBlobUtil::writeStream(
     std::string path,
     std::string encoding,
     bool appendData,
-    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+    std::function<void(::React::JSValueArray)> callback) noexcept
 {
     try
     {
@@ -763,8 +756,8 @@ void ReactNativeBlobUtil::writeStream(
             errorArray.push_back("EUNSPECIFIED");
             errorArray.push_back("Invalid encoding: " + encoding);
             errorArray.push_back("");
-            callback(errorArray);
-            return;
+            callback(std::move(errorArray));
+            co_return;
         }
 
         // Generate a random streamId
@@ -780,7 +773,7 @@ void ReactNativeBlobUtil::writeStream(
         resultArray.push_back(""); // no error
         resultArray.push_back(""); // no message
         resultArray.push_back(streamId);
-        callback(resultArray);
+        callback(std::move(resultArray));
     }
     catch (const winrt::hresult_error& ex)
     {
@@ -788,7 +781,7 @@ void ReactNativeBlobUtil::writeStream(
         errorArray.push_back("EUNSPECIFIED");
         errorArray.push_back("Failed to create write stream at path '" + path + "'; " + winrt::to_string(ex.message()));
         errorArray.push_back("");
-        callback(errorArray);
+        callback(std::move(errorArray));
     }
 }
 
@@ -904,9 +897,9 @@ void ReactNativeBlobUtil::closeStream(
     }
 }
 
-void ReactNativeBlobUtil::unlink(
+winrt::fire_and_forget ReactNativeBlobUtil::unlink(
     std::string path,
-    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+    std::function<void(::React::JSValueArray)> callback) noexcept
 {
     winrt::Windows::System::Threading::ThreadPool::RunAsync([this, path, callback](auto&&)
     {
@@ -931,14 +924,14 @@ void ReactNativeBlobUtil::unlink(
 
             ::React::JSValueArray result;
             result.push_back(::React::JSValue(true));
-            callback(result);
+            callback(std::move(result));
         }
         catch (const winrt::hresult_error& ex)
         {
             ::React::JSValueArray errorResult;
             errorResult.push_back(::React::JSValue(false));
             errorResult.push_back(::React::JSValue(winrt::to_string(ex.message())));
-            callback(errorResult);
+            callback(std::move(errorResult));
         }
     });
 }
@@ -972,9 +965,9 @@ void ReactNativeBlobUtil::removeSession(
     });
 }
 
-void ReactNativeBlobUtil::ls(
+winrt::fire_and_forget ReactNativeBlobUtil::ls(
     std::string path,
-    ::React::ReactPromise<::React::JSValueArray>&& promise) noexcept
+    ::React::ReactPromise<::React::JSValueArray> promise) noexcept
 {
     try
     {
@@ -1040,113 +1033,91 @@ void ReactNativeBlobUtil::ls(
     }
 }
 
-void ReactNativeBlobUtil::stat(
+winrt::fire_and_forget ReactNativeBlobUtil::stat(
     std::string path,
-    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+    std::function<void(::React::JSValueArray)> callback) noexcept
 {
-    winrt::Windows::System::Threading::ThreadPool::RunAsync([path, callback](auto&&)
+    try
     {
-        try
-        {
-            std::filesystem::path givenPath(path);
-            givenPath.make_preferred();
+        std::filesystem::path givenPath(path);
+        givenPath.make_preferred();
+        bool isDirectory{ std::filesystem::is_directory(path) };
 
-            bool isDirectory = std::filesystem::is_directory(givenPath);
+        //std::string resultPath{ winrt::to_string(givenPath.c_str()) };
+        auto resultPath{ winrt::to_hstring(givenPath.c_str()) };
 
-            auto resultPath = winrt::to_hstring(givenPath.c_str());
-
-            winrt::Windows::Storage::IStorageItem item;
-            if (isDirectory) {
-                item = winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(resultPath).get();
-            } else {
-                item = winrt::Windows::Storage::StorageFile::GetFileFromPathAsync(resultPath).get();
-            }
-
-            auto properties = item.GetBasicPropertiesAsync().get();
-
-            ::React::JSValueObject fileInfo;
-            fileInfo["size"] = static_cast<double>(properties.Size());
-            fileInfo["filename"] = givenPath.filename().string();
-            fileInfo["path"] = givenPath.string();
-
-            constexpr int64_t UNIX_EPOCH_IN_WINRT_SECONDS = 11644473600LL;
-            auto lastModified = (properties.DateModified().time_since_epoch() / std::chrono::seconds(1)) - UNIX_EPOCH_IN_WINRT_SECONDS;
-            fileInfo["lastModified"] = static_cast<double>(lastModified);
-
-            fileInfo["type"] = isDirectory ? "directory" : "file";
-
-            ::React::JSValueArray result;
-            result.push_back(std::move(fileInfo));
-            callback(result);
+        // Try to open as folder
+        IStorageItem item;
+        if (isDirectory) {
+            item = co_await StorageFolder::GetFolderFromPathAsync(resultPath);
         }
-        catch (const winrt::hresult_error& ex)
-        {
-            ::React::JSValueArray errorArray;
-            ::React::JSValueObject error;
-            error["error"] = winrt::to_string(ex.message());
-            errorArray.push_back(std::move(error));
-            callback(errorArray);
+        else {
+            item = co_await StorageFile::GetFileFromPathAsync(resultPath);
         }
-    });
+        auto properties{ co_await item.GetBasicPropertiesAsync() };
+        winrt::Microsoft::ReactNative::JSValueObject fileInfo;
+        fileInfo["size"] = properties.Size();
+        fileInfo["filename"] = givenPath.filename().string();
+        fileInfo["path"] = givenPath.string();
+        fileInfo["lastModified"] = winrt::clock::to_time_t(properties.DateModified());;
+        fileInfo["type"] = isDirectory ? "directory" : "file";
+
+        ::React::JSValueArray result;
+        result.push_back(std::move(fileInfo));
+        callback(std::move(result));
+    }
+    catch (const hresult_error& ex)
+    {
+        ::React::JSValueArray errorArray;
+        ::React::JSValueObject error;
+        error["error"] = winrt::to_string(ex.message());
+        errorArray.push_back(std::move(error));
+        callback(std::move(errorArray));
+    }
 }
 
-void ReactNativeBlobUtil::lstat(
+winrt::fire_and_forget ReactNativeBlobUtil::lstat(
     std::string path,
-    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+    std::function<void(::React::JSValueArray)> callback) noexcept
 {
-    winrt::Windows::System::Threading::ThreadPool::RunAsync([path, callback](auto&&)
+    try
     {
-        try
+        std::filesystem::path directory(path);
+        directory.make_preferred();
+        StorageFolder targetDirectory{ co_await StorageFolder::GetFolderFromPathAsync(directory.c_str()) };
+
+        winrt::Microsoft::ReactNative::JSValueArray resultsArray;
+
+        auto items{ co_await targetDirectory.GetItemsAsync() };
+        for (auto item : items)
         {
-            std::filesystem::path directory(path);
-            directory.make_preferred();
+            auto properties{ co_await item.GetBasicPropertiesAsync() };
 
-            auto folder = winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(
-                winrt::to_hstring(directory.c_str())).get();
+            winrt::Microsoft::ReactNative::JSValueObject itemInfo;
 
-            auto items = folder.GetItemsAsync().get();
+            itemInfo["filename"] = to_string(item.Name());
+            itemInfo["path"] = to_string(item.Path());
+            itemInfo["size"] = properties.Size();
+            itemInfo["type"] = item.IsOfType(StorageItemTypes::Folder) ? "directory" : "file";
+            itemInfo["lastModified"] = properties.DateModified().time_since_epoch() / std::chrono::seconds(1) - UNIX_EPOCH_IN_WINRT_SECONDS;
 
-            ::React::JSValueArray resultsArray;
-
-            for (auto const& item : items)
-            {
-                auto properties = item.GetBasicPropertiesAsync().get();
-
-                ::React::JSValueObject itemInfo;
-                itemInfo["filename"] = winrt::to_string(item.Name());
-                itemInfo["path"] = winrt::to_string(item.Path());
-                itemInfo["size"] = static_cast<double>(properties.Size());
-                itemInfo["type"] = item.IsOfType(winrt::Windows::Storage::StorageItemTypes::Folder)
-                    ? "directory"
-                    : "file";
-
-                // Convert winrt::Windows::Foundation::DateTime to seconds since epoch
-                auto winrtTime = properties.DateModified().time_since_epoch().count();
-                constexpr int64_t UNIX_EPOCH_IN_WINRT_SECONDS = 11644473600LL;
-                int64_t lastModified = (properties.DateModified().time_since_epoch() / std::chrono::seconds(1)) - UNIX_EPOCH_IN_WINRT_SECONDS;
-
-                itemInfo["lastModified"] = static_cast<double>(lastModified);
-
-                resultsArray.push_back(std::move(itemInfo));
-            }
-
-            callback(resultsArray);
+            resultsArray.push_back(std::move(itemInfo));
         }
-        catch (...)
-        {
-            ::React::JSValueArray errorResult;
-            ::React::JSValueObject error;
-            error["error"] = "failed to lstat path `" + path + "` because it does not exist or it is not a folder";
-            errorResult.push_back(std::move(error));
-            callback(errorResult);
-        }
-    });
+
+        callback(std::move(resultsArray));
+    }
+    catch (...)
+    {
+        // "Failed to read directory."
+        winrt::Microsoft::ReactNative::JSValueArray emptyArray;
+        callback(std::move(emptyArray));
+    }
 }
 
-void ReactNativeBlobUtil::cp(
+winrt::fire_and_forget ReactNativeBlobUtil::cp(
     std::string src,
     std::string dest,
-    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+    std::function<void(::React::JSValueArray)> callback) noexcept
 {
     try
     {
@@ -1160,7 +1131,7 @@ void ReactNativeBlobUtil::cp(
             [=](auto srcFolderOp, auto status) {
                 if (status != Windows::Foundation::AsyncStatus::Completed) {
                     ::React::JSValueArray error{ "Source directory not found." };
-                    callback(error);
+                    callback(std::move(error));
                     return;
                 }
 
@@ -1171,7 +1142,7 @@ void ReactNativeBlobUtil::cp(
                         [=](auto destFolderOp, auto status2) {
                             if (status2 != Windows::Foundation::AsyncStatus::Completed) {
                                 ::React::JSValueArray error{ "Destination directory not found." };
-                                callback(error);
+                                callback(std::move(error));
                                 return;
                             }
 
@@ -1182,7 +1153,7 @@ void ReactNativeBlobUtil::cp(
                                     [=](auto fileOp, auto status3) {
                                         if (status3 != Windows::Foundation::AsyncStatus::Completed) {
                                             ::React::JSValueArray error{ "Source file not found." };
-                                            callback(error);
+                                            callback(std::move(error));
                                             return;
                                         }
 
@@ -1193,42 +1164,42 @@ void ReactNativeBlobUtil::cp(
                                                 [=](auto copyOp, auto status4) {
                                                     if (status4 != Windows::Foundation::AsyncStatus::Completed) {
                                                         ::React::JSValueArray error{ "Failed to copy file." };
-                                                        callback(error);
+                                                        callback(std::move(error));
                                                     } else {
                                                         ::React::JSValueArray success{}; // success, empty array
-                                                        callback(success);
+                                                        callback(std::move(success));
                                                     }
                                                 });
                                         }
                                         catch (const winrt::hresult_error& ex) {
                                             ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-                                            callback(error);
+                                            callback(std::move(error));
                                         }
                                     });
                             }
                             catch (const winrt::hresult_error& ex) {
                                 ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-                                callback(error);
+                                callback(std::move(error));
                             }
                         });
                 }
                 catch (const winrt::hresult_error& ex) {
                     ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-                    callback(error);
+                    callback(std::move(error));
                 }
             });
     }
     catch (const winrt::hresult_error& ex)
     {
         ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-        callback(error);
+        callback(std::move(error));
     }
 }
 
-void ReactNativeBlobUtil::mv(
+winrt::fire_and_forget ReactNativeBlobUtil::mv(
     std::string src,
     std::string dest,
-    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+    std::function<void(::React::JSValueArray)> callback) noexcept
 {
     try
     {
@@ -1244,7 +1215,7 @@ void ReactNativeBlobUtil::mv(
                 if (status != Windows::Foundation::AsyncStatus::Completed)
                 {
                     ::React::JSValueArray error{ "Source directory not found." };
-                    callback(error);
+                    callback(std::move(error));
                     return;
                 }
 
@@ -1258,7 +1229,7 @@ void ReactNativeBlobUtil::mv(
                             if (status2 != Windows::Foundation::AsyncStatus::Completed)
                             {
                                 ::React::JSValueArray error{ "Destination directory not found." };
-                                callback(error);
+                                callback(std::move(error));
                                 return;
                             }
 
@@ -1272,7 +1243,7 @@ void ReactNativeBlobUtil::mv(
                                         if (status3 != Windows::Foundation::AsyncStatus::Completed)
                                         {
                                             ::React::JSValueArray error{ "Source file not found." };
-                                            callback(error);
+                                            callback(std::move(error));
                                             return;
                                         }
 
@@ -1286,40 +1257,40 @@ void ReactNativeBlobUtil::mv(
                                                     if (status4 != Windows::Foundation::AsyncStatus::Completed)
                                                     {
                                                         ::React::JSValueArray error{ "Failed to move file." };
-                                                        callback(error);
+                                                        callback(std::move(error));
                                                     }
                                                     else
                                                     {
                                                         ::React::JSValueArray success{ }; // Empty array implies success
-                                                        callback(success);
+                                                        callback(std::move(success));
                                                     }
                                                 });
                                         }
                                         catch (const winrt::hresult_error& ex)
                                         {
                                             ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-                                            callback(error);
+                                            callback(std::move(error));
                                         }
                                     });
                             }
                             catch (const winrt::hresult_error& ex)
                             {
                                 ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-                                callback(error);
+                                callback(std::move(error));
                             }
                         });
                 }
                 catch (const winrt::hresult_error& ex)
                 {
                     ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-                    callback(error);
+                    callback(std::move(error));
                 }
             });
     }
     catch (const winrt::hresult_error& ex)
     {
         ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-        callback(error);
+        callback(std::move(error));
     }
 }
 
@@ -1350,11 +1321,11 @@ void ReactNativeBlobUtil::mkdir(
     }
 }
 
-void ReactNativeBlobUtil::readFile(
+winrt::fire_and_forget ReactNativeBlobUtil::readFile(
     std::string path,
     std::string encoding,
     bool transformFile,
-    ::React::ReactPromise<::React::JSValueArray>&& promise) noexcept
+    ::React::ReactPromise<::React::JSValueArray> promise) noexcept
 {
     try
     {
@@ -1406,102 +1377,57 @@ void ReactNativeBlobUtil::readFile(
     }
 }
 
-void ReactNativeBlobUtil::hash(
+winrt::fire_and_forget ReactNativeBlobUtil::hash(
     std::string path,
     std::string algorithm,
-    ::React::ReactPromise<std::string>&& promise) noexcept
+    ::React::ReactPromise<std::string> promise) noexcept
 {
     try
     {
-        if (algorithm == "sha224")
+        // Note: SHA224 is not part of winrt 
+        if (algorithm.compare("sha224") == 0)
         {
             promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "Error", "WinRT does not offer sha224 encryption." });
-            return;
+            co_return;
         }
 
         winrt::hstring directoryPath, fileName;
         splitPath(path, directoryPath, fileName);
 
-        StorageFolder::GetFolderFromPathAsync(directoryPath).Completed(
-            [=, promise = std::move(promise)](auto folderOp, auto status)
-            {
-                if (status != Windows::Foundation::AsyncStatus::Completed)
-                {
-                    promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "Error", "Failed to open folder." });
-                    return;
-                }
+        StorageFolder folder{ co_await StorageFolder::GetFolderFromPathAsync(directoryPath) };
+        StorageFile file{ co_await folder.GetFileAsync(fileName) };
 
-                try
-                {
-                    StorageFolder folder = folderOp.GetResults();
-                    folder.GetFileAsync(fileName).Completed(
-                        [=, promise = std::move(promise)](auto fileOp, auto status2)
-                        {
-                            if (status2 != Windows::Foundation::AsyncStatus::Completed)
-                            {
-                                promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "Error", "Failed to open file." });
-                                return;
-                            }
+        auto search{ availableHashes.find(algorithm) };
+        if (search == availableHashes.end())
+        {
+            promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "Error", "Invalid hash algorithm " + algorithm });
+            co_return;
+        }
 
-                            try
-                            {
-                                StorageFile file = fileOp.GetResults();
+        CryptographyCore::HashAlgorithmProvider provider{ search->second() };
+        Streams::IBuffer buffer{ co_await FileIO::ReadBufferAsync(file) };
 
-                                auto search = availableHashes.find(algorithm);
-                                if (search == availableHashes.end())
-                                {
-                                    promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "Error", "Invalid hash algorithm " + algorithm });
-                                    return;
-                                }
-
-                                CryptographyCore::HashAlgorithmProvider provider = search->second();
-                                FileIO::ReadBufferAsync(file).Completed(
-                                    [=, &provider, promise = std::move(promise)](auto bufferOp, auto status3)                                    {
-                                        if (status3 != Windows::Foundation::AsyncStatus::Completed)
-                                        {
-                                            promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "Error", "Failed to read file." });
-                                            return;
-                                        }
-
-                                        try
-                                        {
-                                            Streams::IBuffer buffer = bufferOp.GetResults();
-                                            Streams::IBuffer hashedBuffer = provider.HashData(buffer);
-                                            std::wstring result = std::wstring(Cryptography::CryptographicBuffer::EncodeToHexString(hashedBuffer));                                            promise.Resolve(winrt::to_string(result));
-                                        }
-                                        catch (const hresult_error& ex)
-                                        {
-                                            promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "Error", winrt::to_string(ex.message()) });
-                                        }
-                                    });
-                            }
-                            catch (const hresult_error& ex)
-                            {
-                                hresult result = ex.code();
-                                if (result == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
-                                {
-                                    promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "ENOENT", "ENOENT: no such file or directory, open " + path });
-                                }
-                                else if (result == E_ACCESSDENIED)
-                                {
-                                    promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "EISDIR", "EISDIR: illegal operation on a directory, read" });
-                                }
-                                else
-                                {
-                                    promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "Error", winrt::to_string(ex.message()) });
-                                }
-                            }
-                        });
-                }
-                catch (const hresult_error& ex)
-                {
-                    promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "Error", winrt::to_string(ex.message()) });
-                }
-            });
+        auto hashedBuffer{ provider.HashData(buffer) };
+        std::wstring result{ Cryptography::CryptographicBuffer::EncodeToHexString(hashedBuffer) };
+        std::string sResult = winrt::to_string(result);
+        promise.Resolve(sResult);
     }
     catch (const hresult_error& ex)
     {
-        promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "Error", winrt::to_string(ex.message()) });
+        hresult result{ ex.code() };
+        if (result == 0x80070002) // FileNotFoundException
+        {
+            promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "ENOENT", "ENOENT: no such file or directory, open " + path });
+        }
+        else if (result == 0x80070005) // UnauthorizedAccessException
+        {
+            promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "EISDIR", "EISDIR: illegal operation on a directory, read" });
+        }
+        else
+        {
+            // "Failed to get checksum from file."
+            promise.Reject(winrt::to_string(ex.message()).c_str());
+        }
     }
 }
 
@@ -1515,25 +1441,30 @@ void ReactNativeBlobUtil::readStream(
     try
     {
         EncodingOptions usedEncoding;
-        if (encoding.compare("utf8") == 0)
+        if (encoding == "utf8")
         {
             usedEncoding = EncodingOptions::UTF8;
         }
-        else if (encoding.compare("base64") == 0)
+        else if (encoding == "base64")
         {
             usedEncoding = EncodingOptions::BASE64;
         }
-        else if (encoding.compare("ascii") == 0)
+        else if (encoding == "ascii")
         {
             usedEncoding = EncodingOptions::ASCII;
         }
         else
         {
-            //Wrong encoding
+            // Invalid encoding
+            m_reactContext.CallJSFunction(L"RCTDeviceEventEmitter", L"emit", streamId,
+                winrt::Microsoft::ReactNative::JSValueObject{
+                    {"event", "error"},
+                    {"EINVAL", "Unsupported encoding: " + encoding}
+                });
             return;
         }
 
-        uint32_t chunkSize{ usedEncoding == EncodingOptions::BASE64 ? (uint32_t)4095 : (uint32_t)4096 };
+        uint32_t chunkSize = (usedEncoding == EncodingOptions::BASE64) ? 4095 : 4096;
         if (bufferSize > 0)
         {
             chunkSize = static_cast<uint32_t>(bufferSize);
@@ -1541,13 +1472,12 @@ void ReactNativeBlobUtil::readStream(
 
         winrt::hstring directoryPath, fileName;
         splitPath(path, directoryPath, fileName);
-        StorageFolder folder{ StorageFolder::GetFolderFromPathAsync(directoryPath).get() };
-        StorageFile file{ folder.GetFileAsync(fileName).get() };
 
-        Streams::IRandomAccessStream stream{ file.OpenAsync(FileAccessMode::Read).get() };
+        StorageFolder folder = StorageFolder::GetFolderFromPathAsync(directoryPath).get();
+        StorageFile file = folder.GetFileAsync(fileName).get();
+        Streams::IRandomAccessStream stream = file.OpenAsync(FileAccessMode::Read).get();
+
         Buffer buffer{ chunkSize };
-        // const TimeSpan time{ tick }; // (commented out, not needed)
-        // IAsyncAction timer; // (commented out, not needed)
 
         for (;;)
         {
@@ -1556,63 +1486,42 @@ void ReactNativeBlobUtil::readStream(
             {
                 m_reactContext.CallJSFunction(L"RCTDeviceEventEmitter", L"emit", streamId,
                     winrt::Microsoft::ReactNative::JSValueObject{
-                        {"event", "end"},
+                        {"event", "end"}
                     });
                 break;
             }
+
             if (usedEncoding == EncodingOptions::BASE64)
             {
-                // TODO: Investigate returning wstrings as parameters
-                winrt::hstring base64Content{ Cryptography::CryptographicBuffer::EncodeToBase64String(readBuffer) };
-                //m_reactContext.CallJSFunction(L"RCTDeviceEventEmitter", L"emit", [&streamId, &base64Content](React::IJSValueWriter const& argWriter) {
-                //	argWriter.WriteArrayBegin();
-                //	WriteValue(argWriter, streamId);
-                //	argWriter.WriteObjectBegin();
-                //	React::WriteProperty(argWriter, "event", "data");
-                //	React::WriteProperty(argWriter, "detail", base64Content);
-                //	argWriter.WriteObjectEnd();
-                //	argWriter.WriteArrayEnd();
-                //	});
+                winrt::hstring base64Content = Cryptography::CryptographicBuffer::EncodeToBase64String(readBuffer);
                 m_reactContext.CallJSFunction(L"RCTDeviceEventEmitter", L"emit", streamId,
                     winrt::Microsoft::ReactNative::JSValueObject{
                         {"event", "data"},
-                        {"detail", winrt::to_string(base64Content)},
+                        {"detail", winrt::to_string(base64Content)}
                     });
             }
             else
             {
-                // TODO: Sending events not working as necessary with writers
-                std::string utf8Content{ winrt::to_string(Cryptography::CryptographicBuffer::ConvertBinaryToString(BinaryStringEncoding::Utf8, readBuffer)) };
+                winrt::hstring stringContent = Cryptography::CryptographicBuffer::ConvertBinaryToString(
+                    BinaryStringEncoding::Utf8, readBuffer);
+                std::string utf8Content = winrt::to_string(stringContent);
+
+                // For ASCII, trim to 7-bit range
                 if (usedEncoding == EncodingOptions::ASCII)
                 {
+                    for (char& c : utf8Content)
+                    {
+                        c &= 0x7F;
+                    }
+                }
 
-                    //std::string asciiContent{ winrt::to_string(utf8Content) };
-                    std::string asciiContent{ utf8Content };
-                    // emit ascii content
-                    m_reactContext.CallJSFunction(L"RCTDeviceEventEmitter", L"emit", streamId,
-                        winrt::Microsoft::ReactNative::JSValueObject{
-                            {"event", "data"},
-                            {"detail", asciiContent},
-                        });
-                }
-                else
-                {
-                    //emit utf8 content
-                    m_reactContext.CallJSFunction(L"RCTDeviceEventEmitter", L"emit", streamId,
-                        winrt::Microsoft::ReactNative::JSValueObject{
-                            {"event", "data"},
-                            {"detail", utf8Content},
-                        });
-                    //m_reactContext.CallJSFunction(L"RCTDeviceEventEmitter", L"emit", [&streamId, &utf8Content](React::IJSValueWriter const& argWriter) {
-                    //	WriteValue(argWriter, streamId);
-                    //	argWriter.WriteObjectBegin();
-                    //	React::WriteProperty(argWriter, "event", L"data");
-                    //	React::WriteProperty(argWriter, "detail", utf8Content);
-                    //	argWriter.WriteObjectEnd();
-                    //	});
-                }
+                m_reactContext.CallJSFunction(L"RCTDeviceEventEmitter", L"emit", streamId,
+                    winrt::Microsoft::ReactNative::JSValueObject{
+                        {"event", "data"},
+                        {"detail", utf8Content}
+                    });
             }
-            // sleep
+
             if (tick > 0)
             {
                 std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int64_t>(tick)));
@@ -1621,13 +1530,13 @@ void ReactNativeBlobUtil::readStream(
     }
     catch (const hresult_error& ex)
     {
-        hresult result{ ex.code() };
-        if (result == 0x80070002) // FileNotFoundException
+        hresult result = ex.code();
+        if (result == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) // 0x80070002
         {
             m_reactContext.CallJSFunction(L"RCTDeviceEventEmitter", L"emit", streamId,
                 winrt::Microsoft::ReactNative::JSValueObject{
                     {"event", "error"},
-                    {"ENOENT", "No such file '" + path + "'"},
+                    {"ENOENT", "No such file: " + path}
                 });
         }
         else
@@ -1635,7 +1544,7 @@ void ReactNativeBlobUtil::readStream(
             m_reactContext.CallJSFunction(L"RCTDeviceEventEmitter", L"emit", streamId,
                 winrt::Microsoft::ReactNative::JSValueObject{
                     {"event", "error"},
-                    {"EUNSPECIFIED", winrt::to_string(ex.message())},
+                    {"EUNSPECIFIED", winrt::to_string(ex.message())}
                 });
         }
     }
@@ -1686,24 +1595,24 @@ void ReactNativeBlobUtil::enableUploadProgressReport(
 	uploadProgressMap.try_emplace(taskId, config);
 }
 
-void ReactNativeBlobUtil::slice(
+winrt::fire_and_forget ReactNativeBlobUtil::slice(
     std::string src,
     std::string dest,
     double start,
     double end,
-    ::React::ReactPromise<std::string>&& promise) noexcept
+    ::React::ReactPromise<std::string> promise) noexcept
 {
     try
     {
         winrt::hstring srcDirectoryPath, srcFileName, destDirectoryPath, destFileName;
         splitPath(src, srcDirectoryPath, srcFileName);
-        splitPath(dest, destDirectoryPath, destFileName);
+        splitPath(src, destDirectoryPath, destFileName);
 
-        auto srcFolder = StorageFolder::GetFolderFromPathAsync(srcDirectoryPath).get();
-        auto destFolder = StorageFolder::GetFolderFromPathAsync(destDirectoryPath).get();
+        StorageFolder srcFolder{ co_await StorageFolder::GetFolderFromPathAsync(srcDirectoryPath) };
+        StorageFolder destFolder{ co_await StorageFolder::GetFolderFromPathAsync(destDirectoryPath) };
 
-        auto srcFile = srcFolder.GetFileAsync(srcFileName).get();
-        auto destFile = destFolder.CreateFileAsync(destFileName, CreationCollisionOption::ReplaceExisting).get();
+        StorageFile srcFile{ co_await srcFolder.GetFileAsync(srcFileName) };
+        StorageFile destFile{ co_await destFolder.CreateFileAsync(destFileName, CreationCollisionOption::OpenIfExists) };
 
         uint64_t uStart = static_cast<uint64_t>(start);
         uint64_t uEnd = static_cast<uint64_t>(end);
@@ -1711,22 +1620,15 @@ void ReactNativeBlobUtil::slice(
 
         if (length == 0) {
             promise.Reject("Invalid slice range");
-            return;
+            co_return;
         }
-
-        auto stream = srcFile.OpenAsync(FileAccessMode::Read).get();
-        stream.Seek(uStart);
-
-        Streams::Buffer buffer(length);
-        auto readBuffer = stream.ReadAsync(buffer, length, InputStreamOptions::None).get();
-
-        FileIO::WriteBufferAsync(destFile, readBuffer).get();
+        Streams::IBuffer buffer;
+        Streams::IRandomAccessStream stream{ co_await srcFile.OpenAsync(FileAccessMode::Read) };
+        stream.Seek(start);
+        stream.ReadAsync(buffer, length, Streams::InputStreamOptions::None);
+        co_await FileIO::WriteBufferAsync(destFile, buffer);
 
         promise.Resolve(dest);
-    }
-    catch (const winrt::hresult_error& ex)
-    {
-        promise.Reject("Unable to slice file: ");
     }
     catch (...)
     {
@@ -1769,15 +1671,13 @@ void ReactNativeBlobUtil::excludeFromBackupKey(
     result.Resolve(::React::JSValueArray{});
 }
 
-void ReactNativeBlobUtil::df(
-    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
-{
-    winrt::Windows::System::Threading::ThreadPool::RunAsync([callback](auto&&)
-    {
+winrt::fire_and_forget ReactNativeBlobUtil::df(
+    std::function<void(::React::JSValueArray)> callback) noexcept
+{ 
         try
         {
             auto localFolder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
-            auto properties = localFolder.Properties().RetrievePropertiesAsync({ L"System.FreeSpace", L"System.Capacity" }).get();
+            auto properties{ co_await localFolder.Properties().RetrievePropertiesAsync({L"System.FreeSpace", L"System.Capacity"}) };
 
             winrt::Microsoft::ReactNative::JSValueObject result;
             result["free"] = winrt::unbox_value<uint64_t>(properties.Lookup(L"System.FreeSpace"));
@@ -1785,7 +1685,7 @@ void ReactNativeBlobUtil::df(
 
             ::React::JSValueArray arr;
             arr.push_back(::React::JSValueObject(std::move(result)));
-            callback(arr);
+            callback(std::move(arr));
         }
         catch (...)
         {
@@ -1793,9 +1693,9 @@ void ReactNativeBlobUtil::df(
             winrt::Microsoft::ReactNative::JSValueObject error;
             error["error"] = "Failed to get storage usage.";
             arr.push_back(::React::JSValueObject(std::move(error)));
-            callback(arr);
+            callback(std::move(arr));
         }
-    });
+   
 }
 
 void ReactNativeBlobUtil::emitExpiredEvent(
