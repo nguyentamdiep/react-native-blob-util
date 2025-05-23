@@ -141,7 +141,7 @@ struct ReactNativeBlobUtil
         void fetchBlob(::React::JSValue&& options, std::string taskId, std::string method, std::string url, ::React::JSValue&& headers, std::string body, std::function<void(::React::JSValueArray const&)> const& callback) noexcept;
 
     REACT_METHOD(createFile, L"createFile")
-        void createFile(
+        winrt::fire_and_forget createFile(
                 std::string path,
                 std::wstring content,
                 std::string encoding,
