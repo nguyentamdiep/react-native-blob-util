@@ -978,50 +978,16 @@ winrt::fire_and_forget ReactNativeBlobUtil::ls(
         winrt::hstring directoryPath, fileName;
         splitPath(path, directoryPath, fileName);
 
-        Windows::Storage::StorageFolder::GetFolderFromPathAsync(directoryPath).Completed(
-            [=, promise = std::move(promise)](auto folderOp, auto status)
-            {
-                if (status != Windows::Foundation::AsyncStatus::Completed)
-                {
-                    promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "ENOTDIR", "Failed to open directory: " + path });
-                    return;
-                }
+        auto folder = co_await Windows::Storage::StorageFolder::GetFolderFromPathAsync(directoryPath);
+        auto items = co_await folder.GetItemsAsync();
 
-                try
-                {
-                    auto folder = folderOp.GetResults();
+        ::React::JSValueArray results;
+        for (const auto& item : items)
+        {
+            results.push_back(::React::JSValue{ winrt::to_string(item.Name()) });
+        }
 
-                    folder.GetItemsAsync().Completed(
-                        [=, promise = std::move(promise)](auto itemsOp, auto status2)
-                        {
-                            if (status2 != Windows::Foundation::AsyncStatus::Completed)
-                            {
-                                promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "ENOTDIR", "Failed to read directory items." });
-                                return;
-                            }
-
-                            try
-                            {
-                                auto items = itemsOp.GetResults();
-                                ::React::JSValueArray results;
-                                for (const auto& item : items)
-                                {
-                                    results.push_back(::React::JSValue{ winrt::to_string(item.Name()) });
-                                }
-
-                                promise.Resolve(results);
-                            }
-                            catch (const winrt::hresult_error& ex)
-                            {
-                                promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "EUNSPECIFIED", winrt::to_string(ex.message()) });
-                            }
-                        });
-                }
-                catch (const winrt::hresult_error& ex)
-                {
-                    promise.Reject(winrt::Microsoft::ReactNative::ReactError{ "EUNSPECIFIED", winrt::to_string(ex.message()) });
-                }
-            });
+        promise.Resolve(results);
     }
     catch (const winrt::hresult_error& ex)
     {
@@ -1131,67 +1097,14 @@ winrt::fire_and_forget ReactNativeBlobUtil::cp(
         winrt::hstring destDirectoryPath, destFileName;
         splitPath(dest, destDirectoryPath, destFileName);
 
-        StorageFolder::GetFolderFromPathAsync(srcDirectoryPath).Completed(
-            [=](auto srcFolderOp, auto status) {
-                if (status != Windows::Foundation::AsyncStatus::Completed) {
-                    ::React::JSValueArray error{ "Source directory not found." };
-                    callback(std::move(error));
-                    return;
-                }
+        StorageFolder srcFolder = co_await StorageFolder::GetFolderFromPathAsync(srcDirectoryPath);
+        StorageFolder destFolder = co_await StorageFolder::GetFolderFromPathAsync(destDirectoryPath);
 
-                try {
-                    StorageFolder srcFolder = srcFolderOp.GetResults();
+        StorageFile file = co_await srcFolder.GetFileAsync(srcFileName);
+        co_await file.CopyAsync(destFolder, destFileName, NameCollisionOption::FailIfExists);
 
-                    StorageFolder::GetFolderFromPathAsync(destDirectoryPath).Completed(
-                        [=](auto destFolderOp, auto status2) {
-                            if (status2 != Windows::Foundation::AsyncStatus::Completed) {
-                                ::React::JSValueArray error{ "Destination directory not found." };
-                                callback(std::move(error));
-                                return;
-                            }
-
-                            try {
-                                StorageFolder destFolder = destFolderOp.GetResults();
-
-                                srcFolder.GetFileAsync(srcFileName).Completed(
-                                    [=](auto fileOp, auto status3) {
-                                        if (status3 != Windows::Foundation::AsyncStatus::Completed) {
-                                            ::React::JSValueArray error{ "Source file not found." };
-                                            callback(std::move(error));
-                                            return;
-                                        }
-
-                                        try {
-                                            StorageFile file = fileOp.GetResults();
-
-                                            file.CopyAsync(destFolder, destFileName, NameCollisionOption::FailIfExists).Completed(
-                                                [=](auto copyOp, auto status4) {
-                                                    if (status4 != Windows::Foundation::AsyncStatus::Completed) {
-                                                        ::React::JSValueArray error{ "Failed to copy file." };
-                                                        callback(std::move(error));
-                                                    } else {
-                                                        ::React::JSValueArray success{}; // success, empty array
-                                                        callback(std::move(success));
-                                                    }
-                                                });
-                                        }
-                                        catch (const winrt::hresult_error& ex) {
-                                            ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-                                            callback(std::move(error));
-                                        }
-                                    });
-                            }
-                            catch (const winrt::hresult_error& ex) {
-                                ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-                                callback(std::move(error));
-                            }
-                        });
-                }
-                catch (const winrt::hresult_error& ex) {
-                    ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-                    callback(std::move(error));
-                }
-            });
+        ::React::JSValueArray success{};
+        callback(std::move(success));
     }
     catch (const winrt::hresult_error& ex)
     {
@@ -1213,83 +1126,14 @@ winrt::fire_and_forget ReactNativeBlobUtil::mv(
         winrt::hstring destDirectoryPath, destFileName;
         splitPath(dest, destDirectoryPath, destFileName);
 
-        StorageFolder::GetFolderFromPathAsync(srcDirectoryPath).Completed(
-            [=](auto srcFolderOp, auto status)
-            {
-                if (status != Windows::Foundation::AsyncStatus::Completed)
-                {
-                    ::React::JSValueArray error{ "Source directory not found." };
-                    callback(std::move(error));
-                    return;
-                }
+        StorageFolder srcFolder = co_await StorageFolder::GetFolderFromPathAsync(srcDirectoryPath);
+        StorageFolder destFolder = co_await StorageFolder::GetFolderFromPathAsync(destDirectoryPath);
 
-                try
-                {
-                    StorageFolder srcFolder = srcFolderOp.GetResults();
+        StorageFile file = co_await srcFolder.GetFileAsync(srcFileName);
+        co_await file.MoveAsync(destFolder, destFileName, NameCollisionOption::ReplaceExisting);
 
-                    StorageFolder::GetFolderFromPathAsync(destDirectoryPath).Completed(
-                        [=](auto destFolderOp, auto status2)
-                        {
-                            if (status2 != Windows::Foundation::AsyncStatus::Completed)
-                            {
-                                ::React::JSValueArray error{ "Destination directory not found." };
-                                callback(std::move(error));
-                                return;
-                            }
-
-                            try
-                            {
-                                StorageFolder destFolder = destFolderOp.GetResults();
-
-                                srcFolder.GetFileAsync(srcFileName).Completed(
-                                    [=](auto fileOp, auto status3)
-                                    {
-                                        if (status3 != Windows::Foundation::AsyncStatus::Completed)
-                                        {
-                                            ::React::JSValueArray error{ "Source file not found." };
-                                            callback(std::move(error));
-                                            return;
-                                        }
-
-                                        try
-                                        {
-                                            StorageFile file = fileOp.GetResults();
-
-                                            file.MoveAsync(destFolder, destFileName, NameCollisionOption::ReplaceExisting).Completed(
-                                                [=](auto moveOp, auto status4)
-                                                {
-                                                    if (status4 != Windows::Foundation::AsyncStatus::Completed)
-                                                    {
-                                                        ::React::JSValueArray error{ "Failed to move file." };
-                                                        callback(std::move(error));
-                                                    }
-                                                    else
-                                                    {
-                                                        ::React::JSValueArray success{ }; // Empty array implies success
-                                                        callback(std::move(success));
-                                                    }
-                                                });
-                                        }
-                                        catch (const winrt::hresult_error& ex)
-                                        {
-                                            ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-                                            callback(std::move(error));
-                                        }
-                                    });
-                            }
-                            catch (const winrt::hresult_error& ex)
-                            {
-                                ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-                                callback(std::move(error));
-                            }
-                        });
-                }
-                catch (const winrt::hresult_error& ex)
-                {
-                    ::React::JSValueArray error{ winrt::to_string(ex.message()) };
-                    callback(std::move(error));
-                }
-            });
+        ::React::JSValueArray success{}; // Success: empty array
+        callback(std::move(success));
     }
     catch (const winrt::hresult_error& ex)
     {
