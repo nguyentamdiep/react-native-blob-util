@@ -195,7 +195,7 @@ struct ReactNativeBlobUtil
     winrt::fire_and_forget unlink(std::string path, std::function<void(::React::JSValueArray)> callback) noexcept;
 
     REACT_METHOD(removeSession)
-    void removeSession(::React::JSValueArray&& paths, std::function<void(::React::JSValueArray const&)> const& callback) noexcept;
+    winrt::fire_and_forget removeSession(::React::JSValueArray paths, std::function<void(::React::JSValueArray)> callback) noexcept;
 
     // readFile
 	REACT_METHOD(readFile)
@@ -261,7 +261,7 @@ struct ReactNativeBlobUtil
     void mkdir(std::string path, ::React::ReactPromise<bool>&& result) noexcept;
 
     REACT_METHOD(readStream)
-    void readStream(std::string path, std::string encoding, double bufferSize, double tick, std::string streamId) noexcept;
+    winrt::fire_and_forget readStream(std::string path, std::string encoding, double bufferSize, double tick, std::string streamId) noexcept;
 
     REACT_METHOD(getEnvironmentDirs)
     void getEnvironmentDirs(std::function<void(::React::JSValueArray const&)> const& callback) noexcept;

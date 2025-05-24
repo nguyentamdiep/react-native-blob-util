@@ -251,9 +251,9 @@ namespace winrt::ReactNativeBlobUtil
                     std::string contentPath = data.substr(strlen("file://"));
                     winrt::hstring directoryPath, fileName;
                     splitPath(contentPath, directoryPath, fileName);
-                    auto folder = winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(directoryPath).get();
-                    auto storageFile = folder.GetFileAsync(fileName).get();
-                    auto requestBuffer = winrt::Windows::Storage::FileIO::ReadBufferAsync(storageFile).get();
+                    auto folder = co_await winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(directoryPath);
+                    auto storageFile = co_await folder.GetFileAsync(fileName);
+                    auto requestBuffer = co_await winrt::Windows::Storage::FileIO::ReadBufferAsync(storageFile);
 
                     winrt::Windows::Web::Http::HttpBufferContent requestBufferContent{ requestBuffer };
                     if (!items["type"].IsNull())
@@ -306,12 +306,12 @@ namespace winrt::ReactNativeBlobUtil
             requestMessage.Content(requestContent);
 
             winrt::Windows::Web::Http::HttpClient httpClient{ filter };
-            auto response = httpClient.SendRequestAsync(requestMessage).get();
+            auto response = co_await httpClient.SendRequestAsync(requestMessage);
 
             std::string responseBody;
             if (response.Content() != nullptr)
             {
-                responseBody = winrt::to_string(response.Content().ReadAsStringAsync().get());
+                responseBody = winrt::to_string(co_await response.Content().ReadAsStringAsync());
             }
 
             ::React::JSValueArray resultArray;
@@ -395,9 +395,9 @@ namespace winrt::ReactNativeBlobUtil
                 bool hasTrailingSlash = contentPath[fileLength - 1] == '\\' || contentPath[fileLength - 1] == '/';
                 winrt::hstring directoryPath, fileName;
                 splitPath(hasTrailingSlash ? contentPath.substr(0, fileLength - 1) : contentPath, directoryPath, fileName);
-                auto folder = winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(directoryPath).get();
-                auto storageFile = folder.GetFileAsync(fileName).get();
-                auto requestBuffer = winrt::Windows::Storage::FileIO::ReadBufferAsync(storageFile).get();
+                auto folder = co_await winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(directoryPath);
+                auto storageFile = co_await folder.GetFileAsync(fileName);
+                auto requestBuffer = co_await winrt::Windows::Storage::FileIO::ReadBufferAsync(storageFile);
 
                 winrt::Windows::Web::Http::HttpBufferContent requestContent{ requestBuffer };
 
@@ -430,12 +430,12 @@ namespace winrt::ReactNativeBlobUtil
             }
 
             // Send the request
-            auto response = httpClient.SendRequestAsync(requestMessage).get();
+            auto response = co_await httpClient.SendRequestAsync(requestMessage);
 
             std::string responseBody;
             if (response.Content() != nullptr)
             {
-                responseBody = winrt::to_string(response.Content().ReadAsStringAsync().get());
+                responseBody = winrt::to_string(co_await response.Content().ReadAsStringAsync());
             }
 
             ::React::JSValueArray resultArray;
@@ -728,9 +728,9 @@ winrt::fire_and_forget ReactNativeBlobUtil::writeStream(
     {
         winrt::hstring directoryPath, fileName;
         splitPath(path, directoryPath, fileName);
-        auto folder = StorageFolder::GetFolderFromPathAsync(directoryPath).get();
-        auto file = folder.CreateFileAsync(fileName, CreationCollisionOption::OpenIfExists).get();
-        auto stream = file.OpenAsync(FileAccessMode::ReadWrite).get();
+        auto folder = co_await StorageFolder::GetFolderFromPathAsync(directoryPath);
+        auto file = co_await folder.CreateFileAsync(fileName, CreationCollisionOption::OpenIfExists);
+        auto stream = co_await file.OpenAsync(FileAccessMode::ReadWrite);
         if (appendData)
         {
             stream.Seek(stream.Size());
@@ -901,9 +901,7 @@ winrt::fire_and_forget ReactNativeBlobUtil::unlink(
     std::string path,
     std::function<void(::React::JSValueArray)> callback) noexcept
 {
-    winrt::Windows::System::Threading::ThreadPool::RunAsync([this, path, callback](auto&&)
-    {
-        try
+   try
         {
             if (std::filesystem::is_directory(path))
             {
@@ -911,15 +909,15 @@ winrt::fire_and_forget ReactNativeBlobUtil::unlink(
                 unlinkPath.make_preferred();
                 auto folderOp = winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(
                     winrt::to_hstring(unlinkPath.c_str()));
-                folderOp.get().DeleteAsync().get();
+               co_await folderOp.get().DeleteAsync();
             }
             else
             {
                 winrt::hstring directoryPath, fileName;
                 splitPath(path, directoryPath, fileName);
-                auto folder = winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(directoryPath).get();
-                auto item = folder.GetItemAsync(fileName).get();
-                item.DeleteAsync().get();
+                auto folder = co_await winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(directoryPath);
+                auto item = co_await folder.GetItemAsync(fileName);
+                co_await item.DeleteAsync();
             }
 
             ::React::JSValueArray result;
@@ -933,36 +931,42 @@ winrt::fire_and_forget ReactNativeBlobUtil::unlink(
             errorResult.push_back(::React::JSValue(winrt::to_string(ex.message())));
             callback(std::move(errorResult));
         }
-    });
+   
 }
 
-void ReactNativeBlobUtil::removeSession(
-    ::React::JSValueArray&& paths,
-    std::function<void(::React::JSValueArray const&)> const& callback) noexcept
+winrt::fire_and_forget ReactNativeBlobUtil::removeSession(::React::JSValueArray paths, std::function<void(::React::JSValueArray)> callback) noexcept
 {
-    winrt::Windows::System::Threading::ThreadPool::RunAsync([paths = std::move(paths), callback](auto&&)
+    try
     {
-        ::React::JSValueArray resultArray;
-        try
+        for (const auto& pathValue : paths)
         {
-            for (const auto& path : paths)
+            if (pathValue)
             {
-                std::filesystem::path toDelete{ path.AsString() };
-                toDelete.make_preferred();
-                auto fileOp = winrt::Windows::Storage::StorageFile::GetFileFromPathAsync(winrt::to_hstring(toDelete.c_str()));
-                auto file = fileOp.get();
-                file.DeleteAsync().get();
+                std::string path = pathValue.AsString();
+                auto folder = co_await winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(winrt::to_hstring(path));
+                auto file = co_await folder.GetFileAsync(winrt::to_hstring(path));
+                co_await file.DeleteAsync();
             }
-            // Success: return empty array
-            callback(resultArray);
         }
-        catch (const winrt::hresult_error& ex)
-        {
-            resultArray.push_back("EUNSPECIFIED");
-            resultArray.push_back(winrt::to_string(ex.message()));
-            callback(resultArray);
-        }
-    });
+
+        ::React::JSValueArray resultArray;
+        resultArray.push_back("SUCCESS");
+        callback(std::move(resultArray));
+    }
+    catch (const winrt::hresult_error& ex)
+    {
+        ::React::JSValueArray errorArray;
+        errorArray.push_back("ERROR");
+        errorArray.push_back(winrt::to_string(ex.message()));
+        callback(std::move(errorArray));
+    }
+    catch (...)
+    {
+        ::React::JSValueArray errorArray;
+        errorArray.push_back("ERROR");
+        errorArray.push_back("Unknown error in removeSession");
+        callback(std::move(errorArray));
+    }
 }
 
 winrt::fire_and_forget ReactNativeBlobUtil::ls(
@@ -1332,10 +1336,9 @@ winrt::fire_and_forget ReactNativeBlobUtil::readFile(
         winrt::hstring directoryPath, fileName;
         splitPath(path, directoryPath, fileName);
 
-        // Use .get() to synchronously wait for async operations
-        auto folder = StorageFolder::GetFolderFromPathAsync(directoryPath).get();
-        auto file = folder.GetFileAsync(fileName).get();
-        auto buffer = FileIO::ReadBufferAsync(file).get();
+        auto folder = co_await StorageFolder::GetFolderFromPathAsync(directoryPath);
+        auto file = co_await folder.GetFileAsync(fileName);
+        auto buffer = co_await FileIO::ReadBufferAsync(file);
 
         ::React::JSValueArray resultArray;
         if (encoding == "base64")
@@ -1431,7 +1434,7 @@ winrt::fire_and_forget ReactNativeBlobUtil::hash(
     }
 }
 
-void ReactNativeBlobUtil::readStream(
+winrt::fire_and_forget ReactNativeBlobUtil::readStream(
     std::string path,
     std::string encoding,
     double bufferSize,
@@ -1461,7 +1464,7 @@ void ReactNativeBlobUtil::readStream(
                     {"event", "error"},
                     {"EINVAL", "Unsupported encoding: " + encoding}
                 });
-            return;
+            co_return;
         }
 
         uint32_t chunkSize = (usedEncoding == EncodingOptions::BASE64) ? 4095 : 4096;
@@ -1473,15 +1476,15 @@ void ReactNativeBlobUtil::readStream(
         winrt::hstring directoryPath, fileName;
         splitPath(path, directoryPath, fileName);
 
-        StorageFolder folder = StorageFolder::GetFolderFromPathAsync(directoryPath).get();
-        StorageFile file = folder.GetFileAsync(fileName).get();
-        Streams::IRandomAccessStream stream = file.OpenAsync(FileAccessMode::Read).get();
+        StorageFolder folder = co_await StorageFolder::GetFolderFromPathAsync(directoryPath);
+        StorageFile file = co_await folder.GetFileAsync(fileName);
+        Streams::IRandomAccessStream stream = co_await file.OpenAsync(FileAccessMode::Read);
 
         Buffer buffer{ chunkSize };
 
         for (;;)
         {
-            auto readBuffer = stream.ReadAsync(buffer, buffer.Capacity(), InputStreamOptions::None).get();
+            auto readBuffer = co_await stream.ReadAsync(buffer, buffer.Capacity(), InputStreamOptions::None);
             if (readBuffer.Length() == 0)
             {
                 m_reactContext.CallJSFunction(L"RCTDeviceEventEmitter", L"emit", streamId,
